@@ -1,35 +1,34 @@
 {:deps  {outskirtslabs/bb-tasks
          {:git/url "https://github.com/outskirtslabs/bb-tasks"
-          :git/sha "e868e28b18a0496ec4d39878f0307cb1df17da22"}}
+          :git/sha "9dbc6d77384b51ffde69007e98a0420b3cf6a0a7"}}
  :paths []
  :tasks {:requires
          ([clojure.string :as str]
-                            [clojure.pprint :refer [print-table]]
-                            [babashka.tasks :refer [shell]]
-                            [ol.bb-tasks.publish-clojars :as publish-clojars])
+          [clojure.pprint :refer [print-table]]
+          [babashka.tasks :refer [shell]]
+          [ol.bb-tasks.publish-clojars :as publish-clojars])
 
          :init
-         (do (def paths ["src" "test"]))
+         (do (def paths ["api/src" "api/test"]))
 
          dev
          {:doc  "Start a local development server"
-          :task (apply clojure "-M:repl/dev:dev" *command-line-args*)}
+          :task (apply clojure "-M:repl/dev:test:dev" *command-line-args*)}
 
          test
          {:doc  "Run all tests or specific test suites"
-          :task (apply clojure "-M:dev:kaocha" *command-line-args*)}
+          :task (apply clojure "-M:dev:test:kaocha" *command-line-args*)}
 
-         fmt
-         {:doc  "Format code with cljfmt"
-          :task (apply shell "cljfmt --quiet -v fix" (if (seq *command-line-args*) *command-line-args* paths))}
+         fmt {:doc  "Format code with cljfmt"
+              :task (if (seq *command-line-args*)
+                      (apply shell "cljfmt --quiet -v fix" (if (seq *command-line-args*) *command-line-args* paths))
+                      (do
+                        (apply shell "cljfmt --quiet -v fix" paths)
+                        (shell "cljfmt --config .cljfmt-deps.edn --quiet -v fix deps.edn")))}
 
          fmt:check
          {:doc  "Check code formatting without making changes"
           :task (apply shell "cljfmt check " paths)}
-
-         prep
-         {:doc  "Prepare Clojure dependencies"
-          :task (apply clojure "-X:deps prep :aliases '[:dev :kaocha]'")}
 
          deps-tree
          {:doc  "Show dependency tree"
@@ -53,14 +52,14 @@
          {:doc     "Run CI checks: test, format check, and lint"
           :depends [test fmt:check lint]}
 
-         jar     {:override-builtin true
-                  :depends          [clean]
-                  :doc              "Build an jar"
-                  :task             (shell "clojure -T:build jar")}
+         jar {:override-builtin true
+              :depends          [clean]
+              :doc              "Build an jar"
+              :task             (shell "clojure -T:build jar")}
 
-         clean   {:override-builtin true
-                  :doc              "Clean build artifacts"
-                  :task             (shell "clojure -T:build clean")}
+         clean {:override-builtin true
+                :doc              "Clean build artifacts"
+                :task             (shell "clojure -T:build clean")}
 
          publish {:doc     "Publish the clojure sdk libs to clojars"
                   :depends [jar]

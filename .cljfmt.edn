@@ -1,2 +1,5 @@
-{:align-form-columns? true
- :align-map-columns?  true}
+{;; :blank-line-forms {:cond :all}
+ :align-form-columns?             true
+ :align-map-columns?              true
+ :max-column-alignment-gap        20
+ :blank-lines-separate-alignment? true}

@@ -2,10 +2,9 @@
  {:bindings {kaocha.stacktrace/*stacktrace-stop-list* ["kaocha.runner"
                                                        "kaocha.plugin.capture_output"
                                                        "kaocha.testable"]}
-  :plugins [:kaocha.plugin.alpha/info
-            :kaocha.plugin/randomize
-            :kaocha.plugin/filter
-            :kaocha.plugin/capture-output]
-
-  :kaocha/reporter
-  [kaocha.report/documentation]}
+  :color?   false
+  :plugins  [:kaocha.plugin/profiling]
+  :tests
+  [{:id                  :api
+    :kaocha/source-paths ["api/src"]
+    :kaocha/test-paths   ["api/test"]}]}

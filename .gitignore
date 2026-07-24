@@ -4,6 +4,7 @@
 **/.claude/settings.local.json
 .clj-kondo/.cache
 .clj-kondo/.lock
+.clj-kondo/imports
 .lsp/
 .nrepl-port
 archive/

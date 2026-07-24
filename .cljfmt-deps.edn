@@ -1,0 +1,4 @@
+{:align-form-columns?             true
+ :align-map-columns?              true
+ :max-column-alignment-gap        nil
+ :blank-lines-separate-alignment? true}

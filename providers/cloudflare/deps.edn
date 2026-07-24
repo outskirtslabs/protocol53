@@ -1,0 +1,7 @@
+{:paths   ["src"]
+ :deps    {ol/protocol53 {:local/root "../../api/"}}
+ :aliases {:neil {:project {:name        com.outskirtslabs/protocol53-cloudfflare
+                            :url         "https://docs.outskirtslabs.com/ol.protocol53"
+                            :license     {:id "MIT"}
+                            :description "One Clojure API for managing DNS records across providers."
+                            :version     "0.0.TODO"}}}}
