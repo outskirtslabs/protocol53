@@ -11,19 +11,19 @@
    [java.time Duration]))
 
 (defn- operation-opts []
-  {:ol.protocol53/deadline (deadline/after (Duration/ofSeconds 5))
-   :future-option          true})
+  {:timeout       (Duration/ofSeconds 5)
+   :future-option true})
 
 (defrecord AllCapabilitiesProvider [calls]
   protocols/RecordGetter
-  (-get-records! [_ opts zone]
+  (-get-records! [_ zone opts]
     (swap! calls conj {:operation :get-records
                        :opts      opts
                        :zone      zone})
     fixtures/record-outcome)
 
   protocols/RecordAppender
-  (-append-records! [_ opts zone records]
+  (-append-records! [_ zone records opts]
     (swap! calls conj {:operation :append-records
                        :opts      opts
                        :zone      zone
@@ -31,7 +31,7 @@
     fixtures/record-outcome)
 
   protocols/RecordSetter
-  (-set-records! [_ opts zone records]
+  (-set-records! [_ zone records opts]
     (swap! calls conj {:operation :set-records
                        :opts      opts
                        :zone      zone
@@ -39,7 +39,7 @@
     fixtures/record-outcome)
 
   protocols/RecordDeleter
-  (-delete-records! [_ opts zone records]
+  (-delete-records! [_ zone records opts]
     (swap! calls conj {:operation :delete-records
                        :opts      opts
                        :zone      zone
@@ -54,18 +54,18 @@
 
 (defrecord GetterOnlyProvider [calls]
   protocols/RecordGetter
-  (-get-records! [_ _opts _zone]
+  (-get-records! [_ _zone _opts]
     (swap! calls conj :get-records)
     fixtures/record-outcome))
 
 (defrecord ReturningProvider [outcome]
   protocols/RecordGetter
-  (-get-records! [_ _opts _zone]
+  (-get-records! [_ _zone _opts]
     outcome))
 
 (defrecord ThrowingProvider [failure]
   protocols/RecordGetter
-  (-get-records! [_ _opts _zone]
+  (-get-records! [_ _zone _opts]
     (throw failure)))
 
 (specification "Provider protocols"
@@ -88,7 +88,19 @@
                protocols/RecordSetter
                protocols/RecordDeleter
                protocols/ZoneLister])
-        => [true false false false false]))))
+        => [true false false false false]
+        "place options after the domain arguments"
+        (mapv #(-> % meta :arglists)
+              [#'protocols/-get-records!
+               #'protocols/-append-records!
+               #'protocols/-set-records!
+               #'protocols/-delete-records!
+               #'protocols/-list-zones!])
+        => '[([provider zone opts])
+             ([provider zone records opts])
+             ([provider zone records opts])
+             ([provider zone records opts])
+             ([provider opts])]))))
 
 (specification "The facade"
   (behavior "dispatches supported operations"
@@ -99,35 +111,49 @@
           opts     (operation-opts)]
       (assertions
         "returns provider outcomes"
-        [(p53/get-records! provider opts "example.com.")
-         (p53/append-records! provider opts "example.com." [fixtures/record])
-         (p53/set-records! provider opts "example.com." [fixtures/record])
-         (p53/delete-records! provider opts "example.com." [fixtures/selector])
+        [(p53/get-records! provider "example.com." opts)
+         (p53/append-records! provider "example.com." [fixtures/record] opts)
+         (p53/set-records! provider "example.com." [fixtures/record] opts)
+         (p53/delete-records! provider "example.com." [fixtures/selector] opts)
          (p53/list-zones! provider opts)]
         => [fixtures/record-outcome
             fixtures/record-outcome
             fixtures/record-outcome
             fixtures/record-outcome
             fixtures/zone-outcome]
-        "passes complete arguments to each provider operation"
-        @calls
+        "passes domain arguments in protocol order"
+        (mapv #(dissoc % :opts) @calls)
         => [{:operation :get-records
-             :opts      opts
              :zone      "example.com."}
             {:operation :append-records
-             :opts      opts
              :zone      "example.com."
              :records   [fixtures/record]}
             {:operation :set-records
-             :opts      opts
              :zone      "example.com."
              :records   [fixtures/record]}
             {:operation :delete-records
-             :opts      opts
              :zone      "example.com."
              :records   [fixtures/selector]}
-            {:operation :list-zones
-             :opts      opts}])))
+            {:operation :list-zones}]
+        "normalizes each reusable timeout and preserves unknown options"
+        (mapv #(dissoc (:opts %) :deadline) @calls)
+        => (vec (repeat 5 {:future-option true}))
+        (every? #(instance? Long (get-in % [:opts :deadline])) @calls)
+        => true)))
+
+  (behavior "passes a caller deadline through unchanged"
+    (let [calls              (atom [])
+          provider           (map->AllCapabilitiesProvider {:calls calls})
+          operation-deadline (deadline/after (Duration/ofSeconds 5))
+          opts               {:deadline      operation-deadline
+                              :future-option true}]
+      (assertions
+        (p53/get-records! provider "example.com." opts)
+        => fixtures/record-outcome
+        @calls
+        => [{:operation :get-records
+             :opts      opts
+             :zone      "example.com."}])))
 
   (behavior "reports unsupported capabilities without dispatch"
     (let [calls     (atom [])
@@ -137,7 +163,7 @@
           anonymous (map->GetterOnlyProvider {:calls calls})
           opts      (operation-opts)]
       (assertions
-        [(p53/append-records! provider opts "example.com." [fixtures/record])
+        [(p53/append-records! provider "example.com." [fixtures/record] opts)
          (p53/list-zones! provider opts)
          (p53/list-zones! anonymous opts)]
         => [{:ol.protocol53/error
@@ -164,25 +190,39 @@
         @calls => [])))
 
   (behavior "reports invalid input without dispatch"
-    (let [calls    (atom [])
-          provider (map->AllCapabilitiesProvider
-                    {:calls                  calls
-                     :ol.protocol53/provider :test-dns})
-          opts     (operation-opts)]
+    (let [calls              (atom [])
+          provider           (map->AllCapabilitiesProvider
+                              {:calls                  calls
+                               :ol.protocol53/provider :test-dns})
+          opts               (operation-opts)
+          operation-deadline (deadline/after (Duration/ofSeconds 5))
+          invalid-opts       [{}
+                              {:timeout nil}
+                              {:timeout Duration/ZERO}
+                              {:timeout (Duration/ofSeconds -1)}
+                              {:timeout :not-a-duration}
+                              {:deadline nil}
+                              {:deadline :not-a-deadline}
+                              {:timeout  (Duration/ofSeconds 5)
+                               :deadline operation-deadline}
+                              {:ol.protocol53/deadline operation-deadline}]]
       (assertions
-        [(p53/get-records! provider {} "example.com.")
-         (p53/get-records! provider opts "")
-         (p53/append-records! provider opts "example.com." [fixtures/selector])
-         (p53/delete-records! provider opts "example.com." [{}])
-         (p53/list-zones! provider {})]
+        "rejects both, neither, and malformed time budgets"
+        (mapv #(p53/list-zones! provider %) invalid-opts)
+        => (vec
+            (repeat
+             (count invalid-opts)
+             {:ol.protocol53/error
+              {:type       :invalid-record
+               :message    "Invalid operation options"
+               :operation  :list-zones
+               :provider   :test-dns
+               :retryable? false}}))
+        "rejects invalid domain values"
+        [(p53/get-records! provider "" opts)
+         (p53/append-records! provider "example.com." [fixtures/selector] opts)
+         (p53/delete-records! provider "example.com." [{}] opts)]
         => [{:ol.protocol53/error
-             {:type       :invalid-record
-              :message    "Invalid operation options"
-              :operation  :get-records
-              :provider   :test-dns
-              :zone       "example.com."
-              :retryable? false}}
-            {:ol.protocol53/error
              {:type       :invalid-record
               :message    "Invalid zone"
               :operation  :get-records
@@ -203,12 +243,6 @@
               :provider   :test-dns
               :zone       "example.com."
               :zone-state :unchanged
-              :retryable? false}}
-            {:ol.protocol53/error
-             {:type       :invalid-record
-              :message    "Invalid operation options"
-              :operation  :list-zones
-              :provider   :test-dns
               :retryable? false}}]
         "does not invoke the provider"
         @calls => [])))
@@ -219,10 +253,10 @@
                               {:calls                  calls
                                :ol.protocol53/provider :test-dns})
           operation-deadline (System/nanoTime)
-          opts               {:ol.protocol53/deadline operation-deadline}]
+          opts               {:deadline operation-deadline}]
       (assertions
-        [(p53/get-records! provider opts "example.com.")
-         (p53/set-records! provider opts "example.com." [fixtures/record])]
+        [(p53/get-records! provider "example.com." opts)
+         (p53/set-records! provider "example.com." [fixtures/record] opts)]
         => [{:ol.protocol53/error
              {:type       :deadline-exceeded
               :message    "Deadline exceeded before provider operation"
@@ -254,13 +288,13 @@
                           :ol.protocol53/provider :test-dns})]
       (assertions
         "returns a valid error outcome"
-        (p53/get-records! valid-error opts "example.com.")
+        (p53/get-records! valid-error "example.com." opts)
         => fixtures/error-outcome
         "rejects the wrong result shape"
-        (p53/get-records! invalid-value opts "example.com.")
+        (p53/get-records! invalid-value "example.com." opts)
         =throws=> #"Provider returned an invalid get-records outcome"
         "rejects a mixed result shape"
-        (p53/get-records! mixed-value opts "example.com.")
+        (p53/get-records! mixed-value "example.com." opts)
         =throws=> #"Provider returned an invalid get-records outcome")))
 
   (behavior "preserves programming faults"
@@ -272,8 +306,8 @@
         (identical? failure
                     (try
                       (p53/get-records! provider
-                                        (operation-opts)
-                                        "example.com.")
+                                        "example.com."
+                                        (operation-opts))
                       (catch Throwable cause
                         cause)))
         => true)))
@@ -292,12 +326,15 @@
         "registers all public function specs"
         (filterv s/get-spec symbols) => symbols)
       (try
-        (assertions
-          "instruments every function"
-          (set (stest/instrument symbols)) => (set symbols)
-          "accepts valid calls"
-          [(p53/get-records! provider opts "example.com.")
-           (p53/list-zones! provider opts)]
-          => [fixtures/record-outcome fixtures/zone-outcome])
+        (let [result (try
+                       [(p53/get-records! provider "example.com." opts)
+                        (p53/list-zones! provider opts)]
+                       (catch Exception cause
+                         cause))]
+          (assertions
+            "instruments every function"
+            (set (stest/instrument symbols)) => (set symbols)
+            "accepts valid calls"
+            result => [fixtures/record-outcome fixtures/zone-outcome]))
         (finally
           (stest/unstrument symbols))))))

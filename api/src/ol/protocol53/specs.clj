@@ -50,9 +50,23 @@
   (s/keys :req-un [:ol.protocol53.zone/name]))
 (s/def ::zones (s/coll-of ::zone :kind vector?))
 
+(s/def :ol.protocol53/timeout ::positive-duration)
 (s/def :ol.protocol53/deadline #(instance? Long %))
+
+(defn- exactly-one-time-budget? [opts]
+  (= 1 (count (filter #(contains? opts %)
+                      [:timeout :deadline]))))
+
 (s/def ::opts
-  (s/keys :req [:ol.protocol53/deadline]))
+  (s/and
+   (s/keys :opt-un [:ol.protocol53/timeout
+                    :ol.protocol53/deadline])
+   exactly-one-time-budget?))
+
+(s/def ::provider-opts
+  (s/and
+   (s/keys :req-un [:ol.protocol53/deadline])
+   #(not (contains? % :timeout))))
 
 (s/def :ol.protocol53.result/records ::records)
 (s/def :ol.protocol53.result/zones ::zones)
@@ -120,14 +134,14 @@
 
 (s/def ::provider some?)
 (s/def ::get-records-args
-  (s/cat :provider ::provider :opts ::opts :zone ::zone-name))
+  (s/cat :provider ::provider :zone ::zone-name :opts ::opts))
 (s/def ::append-records-args
-  (s/cat :provider ::provider :opts ::opts :zone ::zone-name
-         :records ::records))
+  (s/cat :provider ::provider :zone ::zone-name :records ::records
+         :opts ::opts))
 (s/def ::set-records-args ::append-records-args)
 (s/def ::delete-records-args
-  (s/cat :provider ::provider :opts ::opts :zone ::zone-name
-         :records ::record-selectors))
+  (s/cat :provider ::provider :zone ::zone-name
+         :records ::record-selectors :opts ::opts))
 (s/def ::list-zones-args
   (s/cat :provider ::provider :opts ::opts))
 

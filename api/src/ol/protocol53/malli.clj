@@ -4,7 +4,23 @@
   This namespace requires consumers to supply Malli. Core protocol53
   namespaces do not load it."
   (:require
-   [malli.core :as m]))
+   [malli.core :as m])
+  (:import
+   [java.time Duration]))
+
+(defn- positive-duration? [duration]
+  (and (instance? Duration duration)
+       (let [^Duration duration duration]
+         (and (not (.isZero duration))
+              (not (.isNegative duration))
+              (try
+                (< (.toNanos duration) Long/MAX_VALUE)
+                (catch ArithmeticException _
+                  false))))))
+
+(defn- exactly-one-time-budget? [opts]
+  (= 1 (count (filter #(contains? opts %)
+                      [:timeout :deadline]))))
 
 (def record
   "Schema for a complete portable record."
@@ -41,10 +57,20 @@
   (m/schema [:vector zone]))
 
 (def opts
-  "Open operation-options schema requiring a deadline."
+  "Describes open caller options with exactly one time budget."
   (m/schema
-   [:map
-    [:ol.protocol53/deadline [:fn #(instance? Long %)]]]))
+   [:and
+    [:map
+     [:timeout {:optional true} [:fn positive-duration?]]
+     [:deadline {:optional true} [:fn #(instance? Long %)]]]
+    [:fn exactly-one-time-budget?]]))
+
+(def provider-opts
+  "Describes open normalized provider options with only `:deadline`."
+  (m/schema
+   [:and
+    [:map [:deadline [:fn #(instance? Long %)]]]
+    [:fn #(not (contains? % :timeout))]]))
 
 (defn- no-zones? [x]
   (and (map? x) (not (contains? x :zones))))
@@ -116,12 +142,12 @@
 (def get-records-fn
   "Function schema for `ol.protocol53/get-records!`."
   (m/schema
-   [:=> [:cat :some opts [:string {:min 1}]] record-outcome]))
+   [:=> [:cat :some [:string {:min 1}] opts] record-outcome]))
 
 (def append-records-fn
   "Function schema for `ol.protocol53/append-records!`."
   (m/schema
-   [:=> [:cat :some opts [:string {:min 1}] records]
+   [:=> [:cat :some [:string {:min 1}] records opts]
     record-outcome]))
 
 (def set-records-fn
@@ -131,7 +157,7 @@
 (def delete-records-fn
   "Function schema for `ol.protocol53/delete-records!`."
   (m/schema
-   [:=> [:cat :some opts [:string {:min 1}] record-selectors]
+   [:=> [:cat :some [:string {:min 1}] record-selectors opts]
     record-outcome]))
 
 (def list-zones-fn

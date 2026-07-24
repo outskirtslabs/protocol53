@@ -97,9 +97,37 @@
              fixtures/mixed-result-data])
       => [true true false false])))
 
-(specification "The deadline spec"
-  (behavior "is shared with options"
-    (assertions
-      (mapv #(s/valid? :ol.protocol53/deadline %)
-            [fixtures/operation-deadline :not-a-deadline])
-      => [true false])))
+(specification "Time-budget specs"
+  (behavior "publish the timeout and deadline representations"
+    (let [timeout-spec  (s/get-spec :ol.protocol53/timeout)
+          deadline-spec (s/get-spec :ol.protocol53/deadline)]
+      (assertions
+        [(some? timeout-spec)
+         (some? deadline-spec)
+         (if timeout-spec
+           (s/valid? timeout-spec fixtures/timeout)
+           false)
+         (s/valid? deadline-spec fixtures/operation-deadline)]
+        => [true true true true]))))
+
+(specification "Normalized provider options"
+  (behavior "require an unqualified deadline and reject a timeout"
+    (let [spec-schema  (s/get-spec ::specs/provider-opts)
+          malli-var    (ns-resolve 'ol.protocol53.malli 'provider-opts)
+          malli-schema (some-> malli-var deref)
+          validate     (fn [value]
+                         (if (and spec-schema malli-schema)
+                           [(s/valid? spec-schema value)
+                            (m/validate malli-schema value)]
+                           [false false]))]
+      (assertions
+        "publish both schemas"
+        [(some? spec-schema) (some? malli-schema)] => [true true]
+        "accept normalized open options"
+        (validate (assoc fixtures/provider-opts :future-option true))
+        => [true true]
+        "reject caller timeout options and mixed budgets"
+        (mapv validate
+              [fixtures/opts
+               (assoc fixtures/provider-opts :timeout fixtures/timeout)])
+        => [[false false] [false false]]))))

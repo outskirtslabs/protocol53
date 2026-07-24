@@ -5,11 +5,20 @@
   (:import
    [java.time Duration]))
 
+(def timeout
+  (Duration/ofSeconds 30))
+
 (def operation-deadline
-  (deadline/after (Duration/ofSeconds 30)))
+  (deadline/after timeout))
 
 (def opts
-  {:ol.protocol53/deadline operation-deadline})
+  {:timeout timeout})
+
+(def deadline-opts
+  {:deadline operation-deadline})
+
+(def provider-opts
+  deadline-opts)
 
 (def record
   {:name "www"
@@ -89,10 +98,20 @@
     :valid   [[] [zone]]
     :invalid [(list zone) [{}] [(assoc zone :name "")]]}
    {:schema  :opts
-    :valid   [opts (assoc opts :future-option true)]
+    :valid   [opts
+              deadline-opts
+              (assoc opts :future-option true)
+              (assoc deadline-opts :future-option true)]
     :invalid [{}
-              {:ol.protocol53/deadline nil}
-              {:ol.protocol53/deadline :not-a-deadline}]}
+              {:timeout nil}
+              {:timeout Duration/ZERO}
+              {:timeout (Duration/ofSeconds -1)}
+              {:timeout :not-a-duration}
+              {:timeout (Duration/ofNanos Long/MAX_VALUE)}
+              {:deadline nil}
+              {:deadline :not-a-deadline}
+              {:timeout timeout :deadline operation-deadline}
+              {:ol.protocol53/deadline operation-deadline}]}
    {:schema  :record-result-data
     :valid   [record-result-data
               (assoc record-result-data :provider-metadata true)]
@@ -145,42 +164,48 @@
 
 (def operation-corpus
   [{:operation    :get-records
-    :valid-args   [[:provider opts "example.com."]]
-    :invalid-args [[nil opts "example.com."]
-                   [:provider {} "example.com."]
-                   [:provider opts ""]
-                   [:provider opts]]
+    :valid-args   [[:provider "example.com." opts]
+                   [:provider "example.com." deadline-opts]]
+    :invalid-args [[nil "example.com." opts]
+                   [:provider "" opts]
+                   [:provider "example.com." {}]
+                   [:provider opts "example.com."]
+                   [:provider "example.com."]]
     :valid-ret    [record-outcome error-outcome]
     :invalid-ret  [zone-outcome mixed-outcome]}
    {:operation    :append-records
-    :valid-args   [[:provider opts "example.com." []]
+    :valid-args   [[:provider "example.com." [] opts]
+                   [:provider "example.com." [record] deadline-opts]]
+    :invalid-args [[nil "example.com." [record] opts]
+                   [:provider "" [record] opts]
+                   [:provider "example.com." (list record) opts]
+                   [:provider "example.com." [selector] opts]
                    [:provider opts "example.com." [record]]]
-    :invalid-args [[nil opts "example.com." [record]]
-                   [:provider opts "" [record]]
-                   [:provider opts "example.com." (list record)]
-                   [:provider opts "example.com." [selector]]]
     :valid-ret    [record-outcome error-outcome]
     :invalid-ret  [zone-outcome mixed-outcome]}
    {:operation    :set-records
-    :valid-args   [[:provider opts "example.com." []]
+    :valid-args   [[:provider "example.com." [] opts]
+                   [:provider "example.com." [record] deadline-opts]]
+    :invalid-args [[nil "example.com." [record] opts]
+                   [:provider "" [record] opts]
+                   [:provider "example.com." (list record) opts]
+                   [:provider "example.com." [selector] opts]
                    [:provider opts "example.com." [record]]]
-    :invalid-args [[nil opts "example.com." [record]]
-                   [:provider opts "" [record]]
-                   [:provider opts "example.com." (list record)]
-                   [:provider opts "example.com." [selector]]]
     :valid-ret    [record-outcome error-outcome]
     :invalid-ret  [zone-outcome mixed-outcome]}
    {:operation    :delete-records
-    :valid-args   [[:provider opts "example.com." []]
-                   [:provider opts "example.com." [selector record]]]
-    :invalid-args [[nil opts "example.com." [selector]]
-                   [:provider opts "" [selector]]
-                   [:provider opts "example.com." (list selector)]
-                   [:provider opts "example.com." [{}]]]
+    :valid-args   [[:provider "example.com." [] opts]
+                   [:provider "example.com." [selector record] deadline-opts]]
+    :invalid-args [[nil "example.com." [selector] opts]
+                   [:provider "" [selector] opts]
+                   [:provider "example.com." (list selector) opts]
+                   [:provider "example.com." [{}] opts]
+                   [:provider opts "example.com." [selector]]]
     :valid-ret    [record-outcome error-outcome]
     :invalid-ret  [zone-outcome mixed-outcome]}
    {:operation    :list-zones
-    :valid-args   [[:provider opts]]
+    :valid-args   [[:provider opts]
+                   [:provider deadline-opts]]
     :invalid-args [[nil opts]
                    [:provider {}]
                    [:provider opts "example.com."]]
