@@ -7,4 +7,7 @@
   :tests
   [{:id                  :api
     :kaocha/source-paths ["api/src"]
-    :kaocha/test-paths   ["api/test"]}]}
+    :kaocha/test-paths   ["api/test"]}
+   {:id                  :cloudflare
+    :kaocha/source-paths ["providers/cloudflare/src"]
+    :kaocha/test-paths   ["providers/cloudflare/test"]}]}

@@ -9,7 +9,10 @@
           [ol.bb-tasks.publish-clojars :as publish-clojars])
 
          :init
-         (do (def paths ["api/src" "api/test"]))
+         (do (def paths ["api/src"
+                         "api/test"
+                         "providers/cloudflare/src"
+                         "providers/cloudflare/test"]))
 
          dev
          {:doc  "Start a local development server"

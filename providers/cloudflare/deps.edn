@@ -1,7 +1,9 @@
 {:paths   ["src"]
- :deps    {ol/protocol53 {:local/root "../../api/"}}
- :aliases {:neil {:project {:name        com.outskirtslabs/protocol53-cloudfflare
+ :deps    {ol/protocol53            {:local/root "../../api/"}
+           org.babashka/http-client {:mvn/version "0.4.22"}
+           org.babashka/json        {:mvn/version "0.1.6"}}
+ :aliases {:neil {:project {:name        com.outskirtslabs/protocol53-cloudflare
                             :url         "https://docs.outskirtslabs.com/ol.protocol53"
                             :license     {:id "MIT"}
-                            :description "One Clojure API for managing DNS records across providers."
+                            :description "Cloudflare provider implementation for protocol53."
                             :version     "0.0.TODO"}}}}
