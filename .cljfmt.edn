@@ -2,4 +2,7 @@
  :align-form-columns?             true
  :align-map-columns?              true
  :max-column-alignment-gap        20
- :blank-lines-separate-alignment? true}
+ :blank-lines-separate-alignment? true
+ :extra-indents                   {assertions    [[:inner 0]]
+                                   behavior      [[:inner 0]]
+                                   specification [[:inner 0]]}}

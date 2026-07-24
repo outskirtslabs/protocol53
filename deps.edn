@@ -3,6 +3,7 @@
  :aliases {:dev {:extra-paths ["dev"]
                  :extra-deps  {ol/protocol53         {:local/root "api"}
                                metosin/malli         {:mvn/version "0.20.1"}
+                               com.cnuernber/charred {:mvn/version "1.041"}
                                dev.weavejester/hashp {:mvn/version "0.5.1"}
                                org.clojure/clojure   {:mvn/version "1.12.5"}}
                  :jvm-opts    []}
@@ -21,4 +22,4 @@
 
            :debug {:extra-deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.8.0"}
                                 com.clojure-goes-fast/clj-memory-meter   {:mvn/version "0.5.0"}
-                                criterium/criterium                      {:mvn/version "0.4.6"}}}}}
+                                criterium/criterium {:mvn/version "0.4.6"}}}}}

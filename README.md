@@ -31,7 +31,7 @@ See the [API documentation][docs] for complete usage details.
 
 ## Available Providers
 
-TODO
+* [Cloudflare](providers/cloudflare)
 
 ## Example
 
