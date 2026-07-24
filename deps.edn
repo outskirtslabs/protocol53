@@ -1,8 +1,8 @@
 ;; This the mono repo deps.edn
 {:paths   []
  :aliases {:dev {:extra-paths ["dev"]
-                 :extra-deps  {com.outskirtslabs/protocol53-cloudflare
-                               {:local/root "providers/cloudflare"}
+                 :extra-deps  {com.outskirtslabs/protocol53-cloudflare {:local/root "providers/cloudflare"}
+                               com.outskirtslabs/protocol53-testkit    {:local/root "testkit"}
                                com.cnuernber/charred                   {:mvn/version "1.041"}
                                dev.weavejester/hashp                   {:mvn/version "0.5.1"}
                                metosin/malli                           {:mvn/version "0.20.1"}
@@ -10,10 +10,15 @@
                                org.clojure/clojure                     {:mvn/version "1.12.5"}}
                  :jvm-opts    []}
 
-           :test {:extra-paths ["api/test" "providers/cloudflare/test"]
+           :test {:extra-paths ["api/test"
+                                "providers/cloudflare/test"
+                                "testkit/test"]
                   :extra-deps  {lambdaisland/kaocha     {:mvn/version "1.91.1392"}
                                 org.clojure/test.check  {:mvn/version "1.1.3"}
                                 fulcrologic/fulcro-spec {:mvn/version "3.2.10"}}}
+
+           :integration-test {:extra-deps {com.outskirtslabs/protocol53-testkit {:local/root "testkit"}
+                                           fulcrologic/fulcro-spec              {:mvn/version "3.2.10"}}}
 
            :kaocha {:extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
                     :jvm-opts   ["-Dclojure.tools.logging.factory=clojure.tools.logging.impl/jul-factory"

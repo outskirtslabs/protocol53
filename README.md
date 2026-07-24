@@ -29,6 +29,12 @@ Provider capabilities and limitations may vary, but applications can use the sam
 
 See the [API documentation][docs] for complete usage details.
 
+## Scope
+
+`ol.protocol53` aims to cover the common DNS record operations, not every possible one.
+DNS record types and provider APIs vary too much to fit 100% of cases into a provider-agnostic API, and that's fine.
+The goal is to fully serve the ~99% of use cases you'll actually hit, not the last 1%.
+
 ## Available Providers
 
 * [Cloudflare](providers/cloudflare)

@@ -332,6 +332,9 @@
 
       common)))
 
+(defn- canonical-service-binding-content [content]
+  (str/replace content #"=\"([^\"\\\s]*)\"" "=$1"))
+
 (defn- response-data [record type]
   (let [content (:content record)]
     (case type
@@ -366,6 +369,11 @@
             (str flags " " tag " \"" value "\"")
             (invalid-response!)))
         :else (invalid-response!))
+
+      ("HTTPS" "SVCB")
+      (if (string? content)
+        (canonical-service-binding-content content)
+        (invalid-response!))
 
       (if (string? content)
         content

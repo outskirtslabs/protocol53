@@ -8,6 +8,9 @@
   [{:id                  :api
     :kaocha/source-paths ["api/src"]
     :kaocha/test-paths   ["api/test"]}
+   {:id                  :testkit
+    :kaocha/source-paths ["testkit/src"]
+    :kaocha/test-paths   ["testkit/test"]}
    {:id                  :cloudflare
     :kaocha/source-paths ["providers/cloudflare/src"]
     :kaocha/test-paths   ["providers/cloudflare/test"]}]}

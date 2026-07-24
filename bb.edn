@@ -3,16 +3,19 @@
           :git/sha "9dbc6d77384b51ffde69007e98a0420b3cf6a0a7"}}
  :paths []
  :tasks {:requires
-         ([clojure.string :as str]
+         ([babashka.tasks :refer [shell]]
           [clojure.pprint :refer [print-table]]
-          [babashka.tasks :refer [shell]]
+          [clojure.string :as str]
           [ol.bb-tasks.publish-clojars :as publish-clojars])
 
-         :init
-         (do (def paths ["api/src"
-                         "api/test"
-                         "providers/cloudflare/src"
-                         "providers/cloudflare/test"]))
+         :init (do (def paths ["api/src"
+                               "api/test"
+                               "providers/cloudflare/integration-test"
+                               "providers/cloudflare/src"
+                               "providers/cloudflare/test"
+                               "scripts"
+                               "testkit/src"
+                               "testkit/test"]))
 
          dev
          {:doc  "Start a local development server"
@@ -21,6 +24,9 @@
          test
          {:doc  "Run all tests or specific test suites"
           :task (apply clojure "-M:dev:test:kaocha" *command-line-args*)}
+
+         test:integration {:doc  "Run configured provider integration suites"
+                           :task (apply shell "bb" "scripts/run_integration_tests.clj" *command-line-args*)}
 
          fmt {:doc  "Format code with cljfmt"
               :task (if (seq *command-line-args*)
