@@ -1,4 +1,4 @@
-{:paths   ["src"]
+{:paths   ["src/main"]
  :deps    {}
  :aliases {:neil {:project {:name        com.outskirtslabs/protocol53
                             :url         "https://docs.outskirtslabs.com/ol.protocol53"

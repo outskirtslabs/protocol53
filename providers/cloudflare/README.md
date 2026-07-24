@@ -55,7 +55,7 @@ Run every discovered provider integration suite from the repository root:
 bb test:integration
 ```
 
-The runner discovers `providers/*/integration-test`. Cloudflare is skipped when
+The runner discovers `providers/*/src/test-integration`. Cloudflare is skipped when
 its credentials are missing; another provider failure does not stop the remaining
 suites. Cloudflare creates and deletes records whose effective
 owner starts with `p53test-`. Integration tests do not run from `bb test`,

@@ -4,23 +4,24 @@
    [babashka.process :as process]))
 
 (defn- run-integration-tests! [args]
-  (let [integration-paths (->> (fs/glob "providers" "*/integration-test")
+  (let [integration-paths (->> (fs/glob "providers" "*/src/test-integration")
                                (filter fs/directory?)
                                (map str)
                                sort
                                vec)]
     (if (empty? integration-paths)
       (println "No provider integration test suites found")
-      (let [provider-paths (mapv (comp str fs/parent) integration-paths)
+      (let [provider-paths (mapv (comp str fs/parent fs/parent)
+                                 integration-paths)
             provider-deps  (into {}
                                  (map (fn [provider-path]
                                         [(symbol "ol.protocol53.integration"
                                                  (str (fs/file-name provider-path)))
                                          {:local/root provider-path}])
                                       provider-paths))
-            source-paths   (into ["testkit/src"]
+            source-paths   (into ["testkit/src/main"]
                                  (map (fn [provider-path]
-                                        (str provider-path "/src"))
+                                        (str provider-path "/src/main"))
                                       provider-paths))
             config         {:color?     false
                             :fail-fast? false

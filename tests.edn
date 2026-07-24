@@ -6,11 +6,11 @@
   :plugins  [:kaocha.plugin/profiling]
   :tests
   [{:id                  :api
-    :kaocha/source-paths ["api/src"]
-    :kaocha/test-paths   ["api/test"]}
+    :kaocha/source-paths ["api/src/main"]
+    :kaocha/test-paths   ["api/src/test"]}
    {:id                  :testkit
-    :kaocha/source-paths ["testkit/src"]
-    :kaocha/test-paths   ["testkit/test"]}
+    :kaocha/source-paths ["testkit/src/main"]
+    :kaocha/test-paths   ["testkit/src/test"]}
    {:id                  :cloudflare
-    :kaocha/source-paths ["providers/cloudflare/src"]
-    :kaocha/test-paths   ["providers/cloudflare/test"]}]}
+    :kaocha/source-paths ["providers/cloudflare/src/main"]
+    :kaocha/test-paths   ["providers/cloudflare/src/test"]}]}

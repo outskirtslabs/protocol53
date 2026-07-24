@@ -8,14 +8,14 @@
           [clojure.string :as str]
           [ol.bb-tasks.publish-clojars :as publish-clojars])
 
-         :init (do (def paths ["api/src"
-                               "api/test"
-                               "providers/cloudflare/integration-test"
-                               "providers/cloudflare/src"
-                               "providers/cloudflare/test"
+         :init (do (def paths ["api/src/main"
+                               "api/src/test"
+                               "providers/cloudflare/src/main"
+                               "providers/cloudflare/src/test"
+                               "providers/cloudflare/src/test-integration"
                                "scripts"
-                               "testkit/src"
-                               "testkit/test"]))
+                               "testkit/src/main"
+                               "testkit/src/test"]))
 
          dev
          {:doc  "Start a local development server"

@@ -6,7 +6,13 @@
 ((requiring-resolve 'hashp.install/install!))
 
 ;; Configure the paths containing clojure sources we want clj-reload to reload
-(clj-reload/init {:dirs      ["src" "dev" "test"]
+(clj-reload/init {:dirs      ["api/src/main"
+                              "api/src/test"
+                              "dev"
+                              "providers/cloudflare/src/main"
+                              "providers/cloudflare/src/test"
+                              "testkit/src/main"
+                              "testkit/src/test"]
                   :no-reload #{'user 'dev 'ol.dev.portal}})
 
 (set! *warn-on-reflection* true)

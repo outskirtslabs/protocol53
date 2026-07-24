@@ -1,4 +1,4 @@
-{:paths   ["src"]
+{:paths   ["src/main"]
  :deps    {ol/protocol53            {:local/root "../../api/"}
            org.babashka/http-client {:mvn/version "0.4.22"}
            org.babashka/json        {:mvn/version "0.1.6"}}
