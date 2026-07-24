@@ -1,0 +1,21 @@
+{:paths   ["src"]
+ :deps    {}
+ :aliases {:kaocha {:extra-paths ["test"]
+                    :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+                    :main-opts   ["-m" "kaocha.runner"]}
+           :dev    {:extra-paths ["dev"]
+                    :extra-deps  {dev.weavejester/hashp                    {:mvn/version "0.5.1"}
+                                  io.github.tonsky/clj-reload              {:mvn/version "1.0.0"}
+                                  djblue/portal                            {:mvn/version "0.65.0"}
+                                  lambdaisland/ansi                        {:mvn/version "0.2.37"}
+                                  my/dev-repl                              {:git/url "https://github.com/Ramblurr/clojure-dev-repl.git"
+                                                                            :git/sha "3a298ad1d16875ff841079b1bfab087d3ef817ba"}
+                                  com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.7.0"}}}
+           :build  {:deps       {io.github.clojure/tools.build {:mvn/version "0.10.14"}
+                                 slipset/deps-deploy           {:mvn/version "0.2.5"}}
+                    :ns-default build}
+           :neil   {:project {:name        com.outskirtslabs/TODO
+                              :url         "https://example.com/TODO"
+                              :license     {:id "TODO"}
+                              :description ""
+                              :version     "0.0.TODO"}}}}
