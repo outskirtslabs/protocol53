@@ -17,6 +17,9 @@
    {:id                  :desec
     :kaocha/source-paths ["providers/desec/src/main"]
     :kaocha/test-paths   ["providers/desec/src/test"]}
+   {:id                  :porkbun
+    :kaocha/source-paths ["providers/porkbun/src/main"]
+    :kaocha/test-paths   ["providers/porkbun/src/test"]}
    {:id                  :scripts
     :kaocha/source-paths ["scripts"]
     :kaocha/test-paths   ["scripts/test"]}]}

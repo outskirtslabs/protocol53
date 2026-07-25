@@ -1,0 +1,8 @@
+{:paths   ["src/main"]
+ :deps    {ol/protocol53     {:local/root "../../api/"}
+           org.babashka/json {:mvn/version "0.1.6"}}
+ :aliases {:neil {:project {:name        com.outskirtslabs/protocol53-porkbun
+                            :url         "https://docs.outskirtslabs.com/ol.protocol53"
+                            :license     {:id "MIT"}
+                            :description "Porkbun provider implementation for protocol53."
+                            :version     "0.0.TODO"}}}}

@@ -3,6 +3,7 @@
  :aliases {:dev {:extra-paths ["dev"]
                  :extra-deps  {com.outskirtslabs/protocol53-cloudflare {:local/root "providers/cloudflare"}
                                com.outskirtslabs/protocol53-desec      {:local/root "providers/desec"}
+                               com.outskirtslabs/protocol53-porkbun    {:local/root "providers/porkbun"}
                                com.outskirtslabs/protocol53-testkit    {:local/root "testkit"}
                                com.cnuernber/charred                   {:mvn/version "1.041"}
                                dev.weavejester/hashp                   {:mvn/version "0.5.1"}
@@ -14,6 +15,7 @@
            :test {:extra-paths ["api/src/test"
                                 "providers/cloudflare/src/test"
                                 "providers/desec/src/test"
+                                "providers/porkbun/src/test"
                                 "scripts/test"
                                 "testkit/src/test"]
                   :extra-deps  {lambdaisland/kaocha     {:mvn/version "1.91.1392"}

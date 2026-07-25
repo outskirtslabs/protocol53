@@ -16,6 +16,9 @@
                                "providers/desec/src/main"
                                "providers/desec/src/test"
                                "providers/desec/src/test-integration"
+                               "providers/porkbun/src/main"
+                               "providers/porkbun/src/test"
+                               "providers/porkbun/src/test-integration"
                                "scripts"
                                "testkit/src/main"
                                "testkit/src/test"]))
