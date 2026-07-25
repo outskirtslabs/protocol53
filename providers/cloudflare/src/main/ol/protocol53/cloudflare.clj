@@ -1,8 +1,5 @@
 (ns ol.protocol53.cloudflare
-  "Cloudflare DNS provider for protocol53.
-
-  The provider uses scoped Cloudflare API tokens and implements every
-  capability in [[ol.protocol53.protocols]]."
+  "Cloudflare DNS provider for protocol53."
   (:require
    [babashka.json :as json]
    [clojure.string :as str]
@@ -637,11 +634,11 @@
 
   Options:
 
-  | key            | description
-  | -------------- | -----------
-  | `:api-token`   | Scoped token used for DNS record requests.
-  | `:zone-token`  | Optional scoped token used for zone reads.
-  | `:http-client` | Optional [[java.net.http.HttpClient]] for advanced HTTP policy."
+  | key            | description                                                     |
+  |----------------|-----------------------------------------------------------------|
+  | `:api-token`   | Scoped token used for DNS record requests.                      |
+  | `:zone-token`  | Optional scoped token used for zone reads.                      |
+  | `:http-client` | Optional [[java.net.http.HttpClient]] for advanced HTTP policy. |"
   [config]
   (map->Provider
    (assoc config :ol.protocol53/provider :cloudflare)))

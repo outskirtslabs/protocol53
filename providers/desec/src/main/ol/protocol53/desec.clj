@@ -1,9 +1,5 @@
 (ns ol.protocol53.desec
-  "deSEC DNS provider for protocol53.
-
-  deSEC stores DNS data as complete RRsets. Mutations therefore use its atomic
-  bulk RRset endpoint, and requested TTLs below 3600 seconds are stored as
-  3600 seconds."
+  "deSEC DNS provider for protocol53."
   (:require
    [babashka.json :as json]
    [clojure.string :as str]
