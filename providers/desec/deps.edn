@@ -1,0 +1,9 @@
+{:paths   ["src/main"]
+ :deps    {ol/protocol53            {:local/root "../../api/"}
+           org.babashka/http-client {:mvn/version "0.4.22"}
+           org.babashka/json        {:mvn/version "0.1.6"}}
+ :aliases {:neil {:project {:name        com.outskirtslabs/protocol53-desec
+                            :url         "https://docs.outskirtslabs.com/ol.protocol53"
+                            :license     {:id "MIT"}
+                            :description "deSEC provider implementation for protocol53."
+                            :version     "0.0.TODO"}}}}

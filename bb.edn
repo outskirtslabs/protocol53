@@ -13,6 +13,9 @@
                                "providers/cloudflare/src/main"
                                "providers/cloudflare/src/test"
                                "providers/cloudflare/src/test-integration"
+                               "providers/desec/src/main"
+                               "providers/desec/src/test"
+                               "providers/desec/src/test-integration"
                                "scripts"
                                "testkit/src/main"
                                "testkit/src/test"]))

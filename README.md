@@ -38,6 +38,7 @@ The goal is to fully serve the ~99% of use cases you'll actually hit, not the la
 ## Available Providers
 
 * [Cloudflare](providers/cloudflare)
+* [deSEC](providers/desec)
 
 ## Example
 

@@ -13,4 +13,10 @@
     :kaocha/test-paths   ["testkit/src/test"]}
    {:id                  :cloudflare
     :kaocha/source-paths ["providers/cloudflare/src/main"]
-    :kaocha/test-paths   ["providers/cloudflare/src/test"]}]}
+    :kaocha/test-paths   ["providers/cloudflare/src/test"]}
+   {:id                  :desec
+    :kaocha/source-paths ["providers/desec/src/main"]
+    :kaocha/test-paths   ["providers/desec/src/test"]}
+   {:id                  :scripts
+    :kaocha/source-paths ["scripts"]
+    :kaocha/test-paths   ["scripts/test"]}]}
