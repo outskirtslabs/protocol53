@@ -5,11 +5,11 @@
   bulk RRset endpoint, and requested TTLs below 3600 seconds are stored as
   3600 seconds."
   (:require
-   [babashka.http-client :as http]
    [babashka.json :as json]
    [clojure.string :as str]
    [clojure.walk :as walk]
    [ol.protocol53.deadline :as deadline]
+   [ol.protocol53.http :as http]
    [ol.protocol53.protocols :as protocols])
   (:import
    [java.io ByteArrayOutputStream IOException]
@@ -566,7 +566,7 @@
   | key            | description
   | -------------- | -----------
   | `:token`        | deSEC API token used for domain and RRset requests.
-  | `:http-client`  | Optional client accepted by `babashka.http-client`."
+  | `:http-client`  | Optional [[java.net.http.HttpClient]] for advanced HTTP policy."
   [config]
   (map->Provider
    (assoc config :ol.protocol53/provider :desec)))

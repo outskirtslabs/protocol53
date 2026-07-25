@@ -4,10 +4,10 @@
   The provider uses scoped Cloudflare API tokens and implements every
   capability in [[ol.protocol53.protocols]]."
   (:require
-   [babashka.http-client :as http]
    [babashka.json :as json]
    [clojure.string :as str]
    [ol.protocol53.deadline :as deadline]
+   [ol.protocol53.http :as http]
    [ol.protocol53.protocols :as protocols])
   (:import
    [java.io ByteArrayOutputStream IOException]
@@ -641,7 +641,7 @@
   | -------------- | -----------
   | `:api-token`   | Scoped token used for DNS record requests.
   | `:zone-token`  | Optional scoped token used for zone reads.
-  | `:http-client` | Optional client accepted by `babashka.http-client`."
+  | `:http-client` | Optional [[java.net.http.HttpClient]] for advanced HTTP policy."
   [config]
   (map->Provider
    (assoc config :ol.protocol53/provider :cloudflare)))
