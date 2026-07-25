@@ -28,7 +28,7 @@
          {:doc  "Run all tests or specific test suites"
           :task (apply clojure "-M:dev:test:kaocha" *command-line-args*)}
 
-         test:integration {:doc  "Run configured provider integration suites"
+         test:integration {:doc  "Run integrations; select with --provider name[,name...]"
                            :task (apply shell "bb" "scripts/run_integration_tests.clj" *command-line-args*)}
 
          fmt {:doc  "Format code with cljfmt"
