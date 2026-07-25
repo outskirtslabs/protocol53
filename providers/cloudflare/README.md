@@ -1,7 +1,7 @@
 # Cloudflare provider
 
-The Cloudflare provider implements all protocol53 operations with Cloudflare's
-v4 API.
+The [Cloudflare][cloudflare] provider implements all [protocol53][protocol53]
+operations with Cloudflare's v4 API.
 
 ## Authentication
 
@@ -26,9 +26,11 @@ and `Zone.DNS:Write` to `:api-token`:
                         :zone-token "zone-read-token"}))
 ```
 
-Pass `:http-client` to use a client accepted by `babashka.http-client`.
+Pass a caller-built `java.net.http.HttpClient` as `:http-client` when advanced
+HTTP policy requires Java interop.
 
-## Live lifecycle suite
+## Integration Tests
+
 > [!WARNING]
 > Run the lifecycle suite only against a dedicated disposable zone. It creates,
 > replaces, and deletes DNS records. A provider or testkit defect could affect
@@ -37,12 +39,12 @@ Pass `:http-client` to use a client accepted by `babashka.http-client`.
 Set these variables in the process environment or the repository `.env` file.
 Process values take precedence over `.env` values.
 
-| variable | required | description |
-| --- | ---: | --- |
-| `CLOUDFLARE_API_TOKEN` | yes | Scoped token with DNS write access. |
-| `CLOUDFLARE_TEST_ZONE` | one of | Dedicated absolute zone name. |
-| `CLOUDFLARE_DOMAIN` | one of | Alternative zone name; a trailing dot is added when absent. |
-| `CLOUDFLARE_ZONE_TOKEN` | no | Separate scoped token with zone read access. |
+| variable                | required | description                                                 |
+|-------------------------|---------:|-------------------------------------------------------------|
+| `CLOUDFLARE_API_TOKEN`  |      yes | Scoped token with DNS write access.                         |
+| `CLOUDFLARE_TEST_ZONE`  |   one of | Dedicated absolute zone name.                               |
+| `CLOUDFLARE_DOMAIN`     |   one of | Alternative zone name; a trailing dot is added when absent. |
+| `CLOUDFLARE_ZONE_TOKEN` |       no | Separate scoped token with zone read access.                |
 
 `CLOUDFLARE_ZONE_ID` is not required because the provider discovers the zone
 by name.
@@ -60,3 +62,6 @@ its credentials are missing; another provider failure does not stop the remainin
 suites. Cloudflare creates and deletes records whose effective
 owner starts with `p53test-`. Integration tests do not run from `bb test`,
 `bb qa`, or `bb ci`. Do not run concurrent lifecycle suites against one zone.
+
+[cloudflare]: https://cloudflare.com
+[protocol53]: https://github.com/outskirtslabs/protocol53

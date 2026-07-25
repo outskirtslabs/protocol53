@@ -47,8 +47,10 @@ TODO
 
 ## License
 
-Copyright © 2026 Casey Link <casey@outskirtslabs.com>
+Copyright © 2026 Casey Link [casey@outskirtslabs.com][author-email]
 
-Distributed under the [MIT](https://spdx.org/licenses/MIT.html).
+Distributed under the [MIT][mit-license] license.
 
+[author-email]: mailto:casey@outskirtslabs.com
 [docs]: https://docs.outskirtslabs.com/ol.protocol53
+[mit-license]: https://spdx.org/licenses/MIT.html

@@ -36,7 +36,8 @@
                       (apply shell "cljfmt --quiet -v fix" (if (seq *command-line-args*) *command-line-args* paths))
                       (do
                         (apply shell "cljfmt --quiet -v fix" paths)
-                        (shell "cljfmt --config .cljfmt-deps.edn --quiet -v fix deps.edn")))}
+                        (shell "sh" "-c"
+                               "cljfmt --config .cljfmt-deps.edn --quiet -v fix deps.edn providers/*/deps.edn")))}
 
          fmt:check
          {:doc  "Check code formatting without making changes"

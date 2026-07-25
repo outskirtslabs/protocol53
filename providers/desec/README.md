@@ -1,10 +1,11 @@
 # deSEC provider
 
-The [deSEC](https://desec.io) provider implements all protocol53 operations with deSEC's v1 API.
+The [deSEC][desec] provider implements all [protocol53][protocol53] operations
+with deSEC's v1 API.
 
 ## Authentication
 
-Create a basic token at <https://desec.io/tokens>.
+Create a basic token through [deSEC's token management interface][desec-tokens].
 
 ```clojure
 (require '[ol.protocol53.desec :as desec])
@@ -13,7 +14,8 @@ Create a basic token at <https://desec.io/tokens>.
   (desec/provider {:token "token"}))
 ```
 
-Pass `:http-client` to use a client accepted by `babashka.http-client`.
+Pass a caller-built `java.net.http.HttpClient` as `:http-client` when advanced
+HTTP policy requires Java interop.
 
 ## TTL policy
 
@@ -30,7 +32,7 @@ write. As with other protocol53 providers, callers must coordinate concurrent
 mutations of the same RRset. HTTP 429 responses are retried according to
 deSEC's `Retry-After` header while the operation deadline permits.
 
-## Live lifecycle suite
+## Integration Tests
 
 > [!WARNING]
 > Run the lifecycle suite only against a dedicated disposable zone. It creates,
@@ -40,10 +42,10 @@ deSEC's `Retry-After` header while the operation deadline permits.
 Set these variables in the process environment or the repository `.env` file.
 Process values take precedence over `.env` values.
 
-| variable | required | description |
-| --- | ---: | --- |
-| `DESEC_TOKEN` | yes | Basic deSEC token with access to the test domain. |
-| `DESEC_DOMAIN` | yes | Dedicated zone name, with or without a trailing dot. |
+| variable       | required | description                                          |
+|----------------|---------:|------------------------------------------------------|
+| `DESEC_TOKEN`  |      yes | Basic deSEC token with access to the test domain.    |
+| `DESEC_DOMAIN` |      yes | Dedicated zone name, with or without a trailing dot. |
 
 Run every configured provider integration suite from the repository root:
 
@@ -55,3 +57,7 @@ The deSEC wrapper ignores TTL differences in the shared lifecycle comparison
 because all fixture TTLs below 3600 are clamped. Provider-specific tests still
 assert the exact 3600-second policy. Do not run concurrent lifecycle suites
 against one zone.
+
+[desec]: https://desec.io
+[desec-tokens]: https://desec.io/tokens
+[protocol53]: https://github.com/outskirtslabs/protocol53
