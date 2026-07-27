@@ -7,13 +7,9 @@
 .clj-kondo/imports
 .lsp/
 .nrepl-port
-archive/
 target/
 .clojure-mcp
-extra/
-.direnv
 *.log
-prompts/
 result
 .env
 .tmuxb_session

@@ -17,7 +17,8 @@
 
 (set! *warn-on-reflection* true)
 
-(defonce portal! (portal/open-portals))
+(defn open-portals []
+  (defonce portal! (portal/open-portals)))
 
 (comment
   (portal/logs 5)
@@ -29,4 +30,3 @@
   (clojure.repl.deps/sync-deps)
   ;;;
   )
-
