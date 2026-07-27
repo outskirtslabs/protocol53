@@ -1,0 +1,174 @@
+= ol.protocol53
+
+
+The DNS operations you call independent of any one provider.
+
+protocol53 gives you a small, fixed set of operations — <<get-records-BANG-,`get-records!`>>,
+<<append-records-BANG-,`append-records!`>>, <<set-records-BANG-,`set-records!`>>, <<delete-records-BANG-,`delete-records!`>>, and
+<<list-zones-BANG-,`list-zones!`>> — that behave the same behind every supported DNS provider.
+Write against these functions once and switch providers, such as Cloudflare,
+without changing your call sites.
+
+A provider is any value that implements the capabilities in
+xref:api/ol-protocol53-protocols.adoc[`ol.protocol53.protocols`]. You build one from its own namespace, for
+example `ol.protocol53.cloudflare/provider`, and pass it as the first
+argument to every operation.
+
+Each operation takes trailing `opts` with exactly one time budget. A positive
+`java.time.Duration` under `:timeout` starts a fresh budget for the call. A
+process-local `:deadline`, created with xref:api/ol-protocol53-deadline.adoc#after[`ol.protocol53.deadline/after`], lets
+several calls share one budget. The facade normalizes both forms to a deadline
+before provider dispatch.
+
+Operations do not throw on expected failures. Each returns a map with exactly
+one of these keys:
+
+- `:ol.protocol53/result` on success, holding the records or zones produced.
+- `:ol.protocol53/error` on failure, describing what went wrong and whether a
+  retry might succeed.
+
+So a typical call checks for `:ol.protocol53/error` before using the result.
+
+[#get-records-BANG-]
+== get-records!
+
+
+
+
+[source,clojure]
+----
+(get-records! provider zone opts)
+----
+
+Reads every record in `zone` and returns them in the result.
+
+Read-only; it never changes the zone. On success the result holds a vector of
+records under `:records`. Supply exactly one time-budget option.
+
+Options:
+
+| key         | description
+| ----------- | -----------
+| `:timeout`  | Positive `java.time.Duration` starting a fresh budget.
+| `:deadline` | Process-local deadline for sharing an existing budget.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L85-L102[source,window=_blank]
+
+'''
+
+[#append-records-BANG-]
+== append-records!
+
+
+
+
+[source,clojure]
+----
+(append-records! provider zone records opts)
+----
+
+Adds `records` to `zone`, leaving every existing record in place.
+
+Use this to create records without disturbing what is already there. On
+success the result lists the records as the provider stored them. Supply
+exactly one time-budget option.
+
+Options:
+
+| key         | description
+| ----------- | -----------
+| `:timeout`  | Positive `java.time.Duration` starting a fresh budget.
+| `:deadline` | Process-local deadline for sharing an existing budget.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L104-L131[source,window=_blank]
+
+'''
+
+[#set-records-BANG-]
+== set-records!
+
+
+
+
+[source,clojure]
+----
+(set-records! provider zone records opts)
+----
+
+Replaces whole RRsets in `zone` with `records`.
+
+For each `name`/`type` pair present in `records`, this removes every existing
+record of that name and type and installs the ones you gave. Names and types
+you do not mention are left untouched. Use it to declare the exact desired
+state of the RRsets you care about. Supply exactly one time-budget option.
+
+Options:
+
+| key         | description
+| ----------- | -----------
+| `:timeout`  | Positive `java.time.Duration` starting a fresh budget.
+| `:deadline` | Process-local deadline for sharing an existing budget.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L133-L161[source,window=_blank]
+
+'''
+
+[#delete-records-BANG-]
+== delete-records!
+
+
+
+
+[source,clojure]
+----
+(delete-records! provider zone records opts)
+----
+
+Removes records in `zone` that match `records` and ignores the rest.
+
+Each entry in `records` is a selector: it must name a record and may narrow
+the match by `type`, `ttl`, or `data`. A selector that matches nothing is not
+an error. On success the result lists the records that were actually removed.
+Supply exactly one time-budget option.
+
+Options:
+
+| key         | description
+| ----------- | -----------
+| `:timeout`  | Positive `java.time.Duration` starting a fresh budget.
+| `:deadline` | Process-local deadline for sharing an existing budget.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L163-L192[source,window=_blank]
+
+'''
+
+[#list-zones-BANG-]
+== list-zones!
+
+
+
+
+[source,clojure]
+----
+(list-zones! provider opts)
+----
+
+Lists the zones `provider` can operate on.
+
+On success the result holds a vector of zone maps under `:zones`. Use it to
+discover which zones the other operations may target. Supply exactly one
+time-budget option.
+
+Options:
+
+| key         | description
+| ----------- | -----------
+| `:timeout`  | Positive `java.time.Duration` starting a fresh budget.
+| `:deadline` | Process-local deadline for sharing an existing budget.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L194-L210[source,window=_blank]

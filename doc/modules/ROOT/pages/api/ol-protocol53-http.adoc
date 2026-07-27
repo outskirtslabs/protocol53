@@ -1,0 +1,47 @@
+= ol.protocol53.http
+
+
+Synchronous HTTP transport for bundled protocol53 providers.
+
+This namespace is an internal provider utility, not a general-purpose HTTP
+client. Loading it requires Java 11 or newer. Advanced client policy remains
+available through a caller-supplied `java.net.http.HttpClient`.
+
+[#request]
+== request
+
+
+
+
+[source,clojure]
+----
+(request request)
+----
+
+Sends one synchronous HTTP request and returns its response.
+
+Options:
+
+| key             | description
+| ----------------|------------
+| `:uri`          | Required URI string or component map.
+| `:method`       | HTTP method keyword or string (default `:get`).
+| `:headers`      | Map of header names to string or sequential values.
+| `:query-params` | Map of UTF-8 form-encoded query parameters.
+| `:form-params`  | Map encoded as the request body.
+| `:body`         | String, `java.io.File`, or `java.io.InputStream`.
+| `:as`           | `:string` (default) or `:stream`.
+| `:timeout`      | Request timeout in milliseconds.
+| `:throw`        | Throw for exceptional statuses unless `false`.
+| `:version`      | `:http1.1` or `:http2` (default `:http2`).
+| `:client`       | `java.net.http.HttpClient` or request function.
+
+Returns `:status`, vector-valued `:headers`, `:body`, and the negotiated
+`:version`. The body is a string by default. With `:as :stream`, it is a
+`java.io.InputStream` available after the response headers; the caller must
+exhaust or close it. Streaming callers should normally use `:throw false` to
+retain ownership of the stream for every status. Exceptional statuses throw
+`ExceptionInfo` with the complete response as `ex-data`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/http.clj#L200-L231[source,window=_blank]

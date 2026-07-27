@@ -1,0 +1,299 @@
+= ol.protocol53.malli
+
+
+Optional Malli schemas for protocol53 inputs and outcomes.
+
+This namespace requires consumers to supply Malli. Core protocol53
+namespaces do not load it.
+
+[#record]
+== record
+
+
+
+
+
+Schema for a complete portable record.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L25-L32[source,window=_blank]
+
+'''
+
+[#record-selector]
+== record-selector
+
+
+
+
+
+Schema for a delete selector with wildcard fields.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L34-L41[source,window=_blank]
+
+'''
+
+[#records]
+== records
+
+
+
+
+
+Schema for a vector of complete records.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L43-L45[source,window=_blank]
+
+'''
+
+[#record-selectors]
+== record-selectors
+
+
+
+
+
+Schema for a vector of delete selectors.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L47-L49[source,window=_blank]
+
+'''
+
+[#zone]
+== zone
+
+
+
+
+
+Schema for one zone.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L51-L53[source,window=_blank]
+
+'''
+
+[#zones]
+== zones
+
+
+
+
+
+Schema for a vector of zones.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L55-L57[source,window=_blank]
+
+'''
+
+[#opts]
+== opts
+
+
+
+
+
+Describes open caller options with exactly one time budget.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L59-L66[source,window=_blank]
+
+'''
+
+[#provider-opts]
+== provider-opts
+
+
+
+
+
+Describes open normalized provider options with only `:deadline`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L68-L73[source,window=_blank]
+
+'''
+
+[#record-result-data]
+== record-result-data
+
+
+
+
+
+Schema for the inner result of a record operation.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L81-L83[source,window=_blank]
+
+'''
+
+[#zone-result-data]
+== zone-result-data
+
+
+
+
+
+Schema for the inner result of zone listing.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L85-L87[source,window=_blank]
+
+'''
+
+[#error-data]
+== error-data
+
+
+
+
+
+Schema for inner error data.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L89-L105[source,window=_blank]
+
+'''
+
+[#record-success]
+== record-success
+
+
+
+
+
+Schema for a successful record-operation outcome.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L113-L116[source,window=_blank]
+
+'''
+
+[#zone-success]
+== zone-success
+
+
+
+
+
+Schema for a successful zone-listing outcome.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L118-L121[source,window=_blank]
+
+'''
+
+[#error-outcome]
+== error-outcome
+
+
+
+
+
+Schema for an error outcome.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L123-L126[source,window=_blank]
+
+'''
+
+[#record-outcome]
+== record-outcome
+
+
+
+
+
+Schema for exactly one record result or error.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L128-L133[source,window=_blank]
+
+'''
+
+[#zone-outcome]
+== zone-outcome
+
+
+
+
+
+Schema for exactly one zone result or error.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L135-L140[source,window=_blank]
+
+'''
+
+[#get-records-fn]
+== get-records-fn
+
+
+
+
+
+Function schema for `ol.protocol53/get-records!`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L142-L145[source,window=_blank]
+
+'''
+
+[#append-records-fn]
+== append-records-fn
+
+
+
+
+
+Function schema for `ol.protocol53/append-records!`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L147-L151[source,window=_blank]
+
+'''
+
+[#set-records-fn]
+== set-records-fn
+
+
+
+
+
+Function schema for `ol.protocol53/set-records!`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L153-L155[source,window=_blank]
+
+'''
+
+[#delete-records-fn]
+== delete-records-fn
+
+
+
+
+
+Function schema for `ol.protocol53/delete-records!`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L157-L161[source,window=_blank]
+
+'''
+
+[#list-zones-fn]
+== list-zones-fn
+
+
+
+
+
+Function schema for `ol.protocol53/list-zones!`.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/malli.clj#L163-L166[source,window=_blank]

@@ -1,0 +1,18 @@
+{:manifest/version 1,
+ :project
+ {:id "ol.protocol53",
+  :coord "com.outskirtslabs/protocol53",
+  :description
+  "One Clojure API for managing DNS records across providers",
+  :license "MIT",
+  :platforms [:clj],
+  :status :experimental,
+  :created "2026-02-16",
+  :version "0.0.0"},
+ :docs
+ {:component "ol.protocol53",
+  :title "ol.protocol53",
+  :version "next",
+  :prerelease true,
+  :start-path "doc"},
+ :repo {:url "https://github.com/outskirtslabs/protocol53"}}

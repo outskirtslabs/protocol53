@@ -1,11 +1,13 @@
 {:deps  {outskirtslabs/bb-tasks
          {:git/url "https://github.com/outskirtslabs/bb-tasks"
           :git/sha "9dbc6d77384b51ffde69007e98a0420b3cf6a0a7"}}
+ :pods  {clj-kondo/clj-kondo {:version "2026.01.19"}}
  :paths []
  :tasks {:requires
          ([babashka.tasks :refer [shell]]
           [clojure.pprint :refer [print-table]]
           [clojure.string :as str]
+          [ol.bb-tasks.gen-docs :as gen-docs]
           [ol.bb-tasks.publish-clojars :as publish-clojars])
 
          :init (do (def paths ["api/src/main"
@@ -49,6 +51,16 @@
          deps-tree
          {:doc  "Show dependency tree"
           :task (clojure "-X:deps tree :aliases '[:dev]'")}
+
+         gen-docs
+         {:doc "Generate all Antora documentation"
+          :task
+          (gen-docs/generate!
+           {:source-paths ["api/src/main"
+                           "providers/cloudflare/src/main"
+                           "providers/desec/src/main"
+                           "providers/porkbun/src/main"
+                           "testkit/src/main"]})}
 
          lint:copy-configs
          {:doc  "Copy clj-kondo configs from dependencies"

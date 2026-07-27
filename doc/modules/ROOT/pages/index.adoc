@@ -1,0 +1,111 @@
+= ol.protocol53
+
+____
+One Clojure API for managing DNS records across providers.
+____
+
+image:https://img.shields.io/badge/doc-outskirtslabs-orange.svg[doc,link=https://docs.outskirtslabs.com/ol.protocol53/next/]
+image:https://img.shields.io/badge/status-experimental-red.svg[status: experimental,link=https://docs.outskirtslabs.com/open-source-vital-signs#experimental]
+image:https://ci.outskirtslabs.com/repos/github/outskirtslabs/protocol53/badge.svg[alt=nixbot,link=https://ci.outskirtslabs.com/repos/github/outskirtslabs/protocol53]
+
+`ol.protocol53` gives Clojure applications one provider-independent API for querying and changing DNS records.
+Applications can switch DNS services without changing their record-management code.
+
+The shared API lives in `api/`.
+Provider integrations live in `providers/` and translate the common operations into each service's API.
+Protocol53 supports:
+
+* retrieving records from a zone
+* adding records
+* creating or replacing whole RRsets
+* removing matching records
+* listing available zones
+
+Provider capabilities and limitations vary, but applications use the same core
+abstractions across every supported integration.
+
+Project status: *https://docs.outskirtslabs.com/open-source-vital-signs#experimental[Experimental]*.
+
+== Installation
+
+Until the first release, use Git coordinates and select the API and provider modules with `:deps/root`:
+
+[source,clojure]
+----
+{:deps {com.outskirtslabs/protocol53
+        {:git/url "https://github.com/outskirtslabs/protocol53.git"
+         :git/sha "fb1a85b9d1a88de39709574df6198d2bd93ebda3"
+         :deps/root "api"}
+
+        com.outskirtslabs/protocol53-cloudflare
+        {:git/url "https://github.com/outskirtslabs/protocol53.git"
+         :git/sha "fb1a85b9d1a88de39709574df6198d2bd93ebda3"
+         :deps/root "providers/cloudflare"}}}
+----
+
+Provider modules are also available under `providers/desec` and
+`providers/porkbun` with the coordinates
+`com.outskirtslabs/protocol53-desec` and
+`com.outskirtslabs/protocol53-porkbun`.
+
+== Quick Start
+
+Create a provider, then pass it to the common operations with a time budget:
+
+[source,clojure]
+----
+(require '[ol.protocol53 :as protocol53]
+         '[ol.protocol53.cloudflare :as cloudflare])
+(import '[java.time Duration])
+
+(def dns
+  (cloudflare/provider {:api-token (System/getenv "CLOUDFLARE_API_TOKEN")}))
+
+(protocol53/append-records!
+ dns
+ "example.com"
+ [{:name "_acme-challenge"
+   :type "TXT"
+   :ttl  60
+   :data "challenge-token"}]
+ {:timeout (Duration/ofSeconds 10)})
+----
+
+Operations return either `:ol.protocol53/result` or `:ol.protocol53/error`;
+expected provider failures do not throw.
+
+== Documentation
+
+* https://docs.outskirtslabs.com/ol.protocol53/next/[Docs]
+* https://docs.outskirtslabs.com/ol.protocol53/next/api[API Reference]
+* https://github.com/outskirtslabs/protocol53/issues[Support via GitHub Issues]
+
+== Scope
+
+`ol.protocol53` targets common DNS record operations rather than every
+provider-specific feature. DNS record types and provider APIs vary too much for
+a universal abstraction, so Protocol53 focuses on the operations applications
+use across providers.
+
+== Available Providers
+
+* https://github.com/outskirtslabs/protocol53/tree/main/providers/cloudflare[Cloudflare]
+* https://github.com/outskirtslabs/protocol53/tree/main/providers/desec[deSEC]
+* https://github.com/outskirtslabs/protocol53/tree/main/providers/porkbun[Porkbun]
+
+== Related Projects
+
+https://docs.outskirtslabs.com/ol.clave/next/[`ol.clave`] is Outskirts Labs'
+ACME client for automated HTTPS certificate management. ACME DNS-01 validation
+needs temporary TXT records, which Protocol53 can manage across its supported
+DNS providers.
+A direct Clave adapter remains future work.
+
+* https://docs.outskirtslabs.com/ol.clave/next/[Clave documentation]
+* https://github.com/outskirtslabs/clave[Clave source code]
+
+== License
+
+Copyright (C) 2026 Casey Link mailto:casey@outskirtslabs.com[casey@outskirtslabs.com]
+
+Distributed under the https://spdx.org/licenses/MIT.html[MIT] license.

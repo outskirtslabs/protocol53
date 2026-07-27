@@ -1,0 +1,87 @@
+{:api-index/version 1,
+ :component "ol.protocol53",
+ :version "next",
+ :namespaces
+ {"ol.protocol53"
+  {:page "api/ol-protocol53.adoc",
+   :vars
+   {"append-records!" "append-records-BANG-",
+    "delete-records!" "delete-records-BANG-",
+    "get-records!" "get-records-BANG-",
+    "list-zones!" "list-zones-BANG-",
+    "set-records!" "set-records-BANG-"}},
+  "ol.protocol53.cloudflare"
+  {:page "api/ol-protocol53-cloudflare.adoc",
+   :vars
+   {"->Provider" "--GT-Provider",
+    "Provider" "Provider",
+    "map->Provider" "map--GT-Provider",
+    "provider" "provider"}},
+  "ol.protocol53.deadline"
+  {:page "api/ol-protocol53-deadline.adoc",
+   :vars
+   {"after" "after",
+    "expired?" "expired-QMARK-",
+    "remaining" "remaining",
+    "within?" "within-QMARK-"}},
+  "ol.protocol53.desec"
+  {:page "api/ol-protocol53-desec.adoc",
+   :vars
+   {"->Provider" "--GT-Provider",
+    "Provider" "Provider",
+    "map->Provider" "map--GT-Provider",
+    "provider" "provider"}},
+  "ol.protocol53.http"
+  {:page "api/ol-protocol53-http.adoc", :vars {"request" "request"}},
+  "ol.protocol53.malli"
+  {:page "api/ol-protocol53-malli.adoc",
+   :vars
+   {"append-records-fn" "append-records-fn",
+    "delete-records-fn" "delete-records-fn",
+    "error-data" "error-data",
+    "error-outcome" "error-outcome",
+    "get-records-fn" "get-records-fn",
+    "list-zones-fn" "list-zones-fn",
+    "opts" "opts",
+    "provider-opts" "provider-opts",
+    "record" "record",
+    "record-outcome" "record-outcome",
+    "record-result-data" "record-result-data",
+    "record-selector" "record-selector",
+    "record-selectors" "record-selectors",
+    "record-success" "record-success",
+    "records" "records",
+    "set-records-fn" "set-records-fn",
+    "zone" "zone",
+    "zone-outcome" "zone-outcome",
+    "zone-result-data" "zone-result-data",
+    "zone-success" "zone-success",
+    "zones" "zones"}},
+  "ol.protocol53.porkbun"
+  {:page "api/ol-protocol53-porkbun.adoc",
+   :vars
+   {"->Provider" "--GT-Provider",
+    "Provider" "Provider",
+    "map->Provider" "map--GT-Provider",
+    "provider" "provider"}},
+  "ol.protocol53.protocols"
+  {:page "api/ol-protocol53-protocols.adoc",
+   :vars
+   {"-append-records!" "-append-records-BANG-",
+    "-delete-records!" "-delete-records-BANG-",
+    "-get-records!" "-get-records-BANG-",
+    "-list-zones!" "-list-zones-BANG-",
+    "-set-records!" "-set-records-BANG-",
+    "RecordAppender" "RecordAppender",
+    "RecordDeleter" "RecordDeleter",
+    "RecordGetter" "RecordGetter",
+    "RecordSetter" "RecordSetter",
+    "ZoneLister" "ZoneLister"}},
+  "ol.protocol53.specs"
+  {:page "api/ol-protocol53-specs.adoc", :vars {}},
+  "ol.protocol53.testkit"
+  {:page "api/ol-protocol53-testkit.adoc",
+   :vars {"cleanup!" "cleanup-BANG-", "run!" "run-BANG-"}},
+  "ol.protocol53.testkit.dotenv"
+  {:page "api/ol-protocol53-testkit-dotenv.adoc",
+   :vars {"load-env-file" "load-env-file"}}}}

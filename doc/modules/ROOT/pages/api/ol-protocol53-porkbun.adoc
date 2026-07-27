@@ -1,0 +1,77 @@
+= ol.protocol53.porkbun
+
+
+Porkbun DNS provider for protocol53.
+
+[#--GT-Provider]
+== ->Provider
+
+
+
+
+[source,clojure]
+----
+(->Provider api-key secret-key http-client)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L700-L735[source,window=_blank]
+
+'''
+
+[#Provider]
+== Provider
+
+
+
+
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L700-L735[source,window=_blank]
+
+'''
+
+[#map--GT-Provider]
+== map->Provider
+
+
+
+
+[source,clojure]
+----
+(map->Provider m)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L700-L735[source,window=_blank]
+
+'''
+
+[#provider]
+== provider
+
+
+
+
+[source,clojure]
+----
+(provider config)
+----
+
+Returns a Porkbun provider from `config`.
+
+Options:
+
+[options="header"]
+|===
+| key | description
+| `:api-key` | Porkbun API key.
+| `:secret-key` | Porkbun secret API key.
+| `:http-client` | Optional `java.net.http.HttpClient` for advanced HTTP policy.
+|===
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L749-L761[source,window=_blank]

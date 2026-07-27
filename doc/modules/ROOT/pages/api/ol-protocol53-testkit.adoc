@@ -1,0 +1,78 @@
+= ol.protocol53.testkit
+
+
+Provider-agnostic lifecycle checks for protocol53 implementations.
+
+This suite creates, replaces, and deletes DNS records. Run it only against a
+dedicated disposable test zone. Generated owners use the reserved
+`p53test-` prefix so interrupted runs can be cleaned safely.
+
+[#cleanup-BANG-]
+== cleanup!
+
+
+
+
+[source,clojure]
+----
+(cleanup! config)
+----
+
+Removes reserved lifecycle records and verifies their absence.
+
+Use this after an interrupted run. The function changes DNS and rejects the
+call unless `:allow-live-changes?` is exactly `true`.
+
+Options:
+
+[options="header"]
+|===
+| key | description
+| `:provider` | Provider implementing all four record capabilities (required).
+| `:zone` | Dedicated absolute zone name ending in `.` (required).
+| `:allow-live-changes?` | Destructive-operation acknowledgement; must be `true` (required).
+| `:timeout` | Positive `java.time.Duration` for each call (default 30 seconds).
+| `:skip-record-types` | Set of nonessential uppercase or lowercase types (default `#{}`).
+| `:skip-empty-txt?` | Omit the exact-empty TXT fixture when unsupported (default `false`).
+|===
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/testkit/src/main/ol/protocol53/testkit.clj#L256-L273[source,window=_blank]
+
+'''
+
+[#run-BANG-]
+== run!
+
+
+
+
+[source,clojure]
+----
+(run! config)
+----
+
+Runs the provider lifecycle suite against a dedicated DNS zone.
+
+The suite validates configuration, cleans stale `p53test-` records, and then
+runs list, get, append, set, delete, wildcard-delete, and final cleanup
+checks sequentially. It emits `clojure.test` assertions in the active test.
+
+Options:
+
+[options="header"]
+|===
+| key | description
+| `:provider` | Provider implementing all four record capabilities (required).
+| `:zone` | Dedicated absolute zone name ending in `.` (required).
+| `:allow-live-changes?` | Destructive-operation acknowledgement; must be `true` (required).
+| `:timeout` | Positive `java.time.Duration` for each call (default 30 seconds).
+| `:skip-record-types` | Set of nonessential uppercase or lowercase types (default `#{}`).
+| `:skip-empty-txt?` | Omit the exact-empty TXT fixture when unsupported (default `false`).
+| `:ignore-ttl?` | Ignore TTL differences in lifecycle checks (default `false`).
+| `:expect-empty-zone?` | Reject remaining active non-`NS` records (default `false`).
+|===
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/testkit/src/main/ol/protocol53/testkit.clj#L444-L477[source,window=_blank]

@@ -1,0 +1,77 @@
+= ol.protocol53.cloudflare
+
+
+Cloudflare DNS provider for protocol53.
+
+[#--GT-Provider]
+== ->Provider
+
+
+
+
+[source,clojure]
+----
+(->Provider api-token zone-token http-client)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
+
+'''
+
+[#Provider]
+== Provider
+
+
+
+
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
+
+'''
+
+[#map--GT-Provider]
+== map->Provider
+
+
+
+
+[source,clojure]
+----
+(map->Provider m)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
+
+'''
+
+[#provider]
+== provider
+
+
+
+
+[source,clojure]
+----
+(provider config)
+----
+
+Returns a Cloudflare provider from `config`.
+
+Options:
+
+[options="header"]
+|===
+| key | description
+| `:api-token` | Scoped token used for DNS record requests.
+| `:zone-token` | Optional scoped token used for zone reads.
+| `:http-client` | Optional `java.net.http.HttpClient` for advanced HTTP policy.
+|===
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L680-L692[source,window=_blank]

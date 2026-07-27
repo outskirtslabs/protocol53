@@ -1,0 +1,112 @@
+= ol.protocol53.protocols
+
+
+Provider capability extension points.
+
+[#RecordGetter]
+== RecordGetter
+
+Retrieves all records in one zone.
+
+_protocol_
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/protocols.clj#L4-L6[source,window=_blank]
+
+
+[#-get-records-BANG-]
+=== -get-records!
+
+[source,clojure]
+----
+(-get-records! provider zone opts)
+----
+
+
+'''
+
+[#RecordAppender]
+== RecordAppender
+
+Appends records without modifying existing records.
+
+_protocol_
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/protocols.clj#L8-L10[source,window=_blank]
+
+
+[#-append-records-BANG-]
+=== -append-records!
+
+[source,clojure]
+----
+(-append-records! provider zone records opts)
+----
+
+
+'''
+
+[#RecordSetter]
+== RecordSetter
+
+Replaces the selected complete RRsets.
+
+_protocol_
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/protocols.clj#L12-L14[source,window=_blank]
+
+
+[#-set-records-BANG-]
+=== -set-records!
+
+[source,clojure]
+----
+(-set-records! provider zone records opts)
+----
+
+
+'''
+
+[#RecordDeleter]
+== RecordDeleter
+
+Deletes matching records and ignores misses.
+
+_protocol_
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/protocols.clj#L16-L18[source,window=_blank]
+
+
+[#-delete-records-BANG-]
+=== -delete-records!
+
+[source,clojure]
+----
+(-delete-records! provider zone records opts)
+----
+
+
+'''
+
+[#ZoneLister]
+== ZoneLister
+
+Lists zones supported by record operations.
+
+_protocol_
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/protocols.clj#L20-L22[source,window=_blank]
+
+
+[#-list-zones-BANG-]
+=== -list-zones!
+
+[source,clojure]
+----
+(-list-zones! provider opts)
+----
+

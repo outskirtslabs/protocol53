@@ -1,0 +1,42 @@
+= API Reference
+
+This release publishes 11 namespaces.
+
+[cols="1,3",options="header",stripes=hover]
+|===
+| Namespace | Summary
+
+| xref:api/ol-protocol53.adoc[`ol.protocol53`]
+| The DNS operations you call independent of any one provider.
+
+| xref:api/ol-protocol53-cloudflare.adoc[`ol.protocol53.cloudflare`]
+| Cloudflare DNS provider for protocol53.
+
+| xref:api/ol-protocol53-deadline.adoc[`ol.protocol53.deadline`]
+| Time budgets for protocol53 operations.
+
+| xref:api/ol-protocol53-desec.adoc[`ol.protocol53.desec`]
+| deSEC DNS provider for protocol53.
+
+| xref:api/ol-protocol53-http.adoc[`ol.protocol53.http`]
+| Synchronous HTTP transport for bundled protocol53 providers.
+
+| xref:api/ol-protocol53-malli.adoc[`ol.protocol53.malli`]
+| Optional Malli schemas for protocol53 inputs and outcomes.
+
+| xref:api/ol-protocol53-porkbun.adoc[`ol.protocol53.porkbun`]
+| Porkbun DNS provider for protocol53.
+
+| xref:api/ol-protocol53-protocols.adoc[`ol.protocol53.protocols`]
+| Provider capability extension points.
+
+| xref:api/ol-protocol53-specs.adoc[`ol.protocol53.specs`]
+| Specifications for protocol53 inputs and outcomes.
+
+| xref:api/ol-protocol53-testkit.adoc[`ol.protocol53.testkit`]
+| Provider-agnostic lifecycle checks for protocol53 implementations.
+
+| xref:api/ol-protocol53-testkit-dotenv.adoc[`ol.protocol53.testkit.dotenv`]
+| Minimal `.
+
+|===

@@ -1,0 +1,74 @@
+= ol.protocol53.desec
+
+
+deSEC DNS provider for protocol53.
+
+[#--GT-Provider]
+== ->Provider
+
+
+
+
+[source,clojure]
+----
+(->Provider token http-client)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/desec/src/main/ol/protocol53/desec.clj#L545-L580[source,window=_blank]
+
+'''
+
+[#Provider]
+== Provider
+
+
+
+
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/desec/src/main/ol/protocol53/desec.clj#L545-L580[source,window=_blank]
+
+'''
+
+[#map--GT-Provider]
+== map->Provider
+
+
+
+
+[source,clojure]
+----
+(map->Provider m)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/desec/src/main/ol/protocol53/desec.clj#L545-L580[source,window=_blank]
+
+'''
+
+[#provider]
+== provider
+
+
+
+
+[source,clojure]
+----
+(provider config)
+----
+
+Returns a deSEC provider from `config`.
+
+Options:
+
+| key            | description
+| -------------- | -----------
+| `:token`        | deSEC API token used for domain and RRset requests.
+| `:http-client`  | Optional `java.net.http.HttpClient` for advanced HTTP policy.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/desec/src/main/ol/protocol53/desec.clj#L582-L593[source,window=_blank]

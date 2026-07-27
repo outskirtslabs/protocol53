@@ -1,0 +1,22 @@
+= ol.protocol53.testkit.dotenv
+
+
+Minimal `.env` file loading for development lifecycle suites.
+
+[#load-env-file]
+== load-env-file
+
+
+
+
+[source,clojure]
+----
+(load-env-file filename)
+----
+
+Loads assignments from `filename` into a string map.
+
+Returns an empty map when `filename` does not name an existing file.
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/testkit/src/main/ol/protocol53/testkit/dotenv.clj#L36-L43[source,window=_blank]
