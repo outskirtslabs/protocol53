@@ -26,27 +26,24 @@ abstractions across every supported integration.
 
 Project status: *https://docs.outskirtslabs.com/open-source-vital-signs#experimental[Experimental]*.
 
+== Available Providers
+
+* https://docs.outskirtslabs.com/ol.protocol53/next/providers/cloudflare[Cloudflare]
+* https://docs.outskirtslabs.com/ol.protocol53/next/providers/desec[deSEC]
+* https://docs.outskirtslabs.com/ol.protocol53/next/providers/porkbun[Porkbun]
+
+
 == Installation
 
-Until the first release, use Git coordinates and select the API and provider modules with `:deps/root`:
+Until the first release, use the API's Git coordinate:
 
 [source,clojure]
 ----
 {:deps {com.outskirtslabs/protocol53
         {:git/url "https://github.com/outskirtslabs/protocol53.git"
-         :git/sha "fb1a85b9d1a88de39709574df6198d2bd93ebda3"
-         :deps/root "api"}
-
-        com.outskirtslabs/protocol53-cloudflare
-        {:git/url "https://github.com/outskirtslabs/protocol53.git"
-         :git/sha "fb1a85b9d1a88de39709574df6198d2bd93ebda3"
-         :deps/root "providers/cloudflare"}}}
+         :git/sha "4a0ad834256d7e1e1a6a95936ea5e7ca14f13988"
+         :deps/root "api"}}}
 ----
-
-Provider modules are also available under `providers/desec` and
-`providers/porkbun` with the coordinates
-`com.outskirtslabs/protocol53-desec` and
-`com.outskirtslabs/protocol53-porkbun`.
 
 == Quick Start
 
@@ -86,12 +83,6 @@ expected provider failures do not throw.
 provider-specific feature. DNS record types and provider APIs vary too much for
 a universal abstraction, so Protocol53 focuses on the operations applications
 use across providers.
-
-== Available Providers
-
-* https://github.com/outskirtslabs/protocol53/tree/main/providers/cloudflare[Cloudflare]
-* https://github.com/outskirtslabs/protocol53/tree/main/providers/desec[deSEC]
-* https://github.com/outskirtslabs/protocol53/tree/main/providers/porkbun[Porkbun]
 
 == Related Projects
 

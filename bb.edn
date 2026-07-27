@@ -4,7 +4,8 @@
  :pods  {clj-kondo/clj-kondo {:version "2026.01.19"}}
  :paths []
  :tasks {:requires
-         ([babashka.tasks :refer [shell]]
+         ([babashka.fs :as fs]
+          [babashka.tasks :refer [shell]]
           [clojure.pprint :refer [print-table]]
           [clojure.string :as str]
           [ol.bb-tasks.gen-docs :as gen-docs]
@@ -55,12 +56,19 @@
          gen-docs
          {:doc "Generate all Antora documentation"
           :task
-          (gen-docs/generate!
-           {:source-paths ["api/src/main"
-                           "providers/cloudflare/src/main"
-                           "providers/desec/src/main"
-                           "providers/porkbun/src/main"
-                           "testkit/src/main"]})}
+          (do
+            (gen-docs/generate!
+             {:source-paths ["api/src/main"
+                             "providers/cloudflare/src/main"
+                             "providers/desec/src/main"
+                             "providers/porkbun/src/main"
+                             "testkit/src/main"]})
+            (let [pages-dir "doc/modules/ROOT/pages/providers"]
+              (fs/create-dirs pages-dir)
+              (doseq [provider ["cloudflare" "desec" "porkbun"]]
+                (fs/copy (fs/path "providers" provider "README.adoc")
+                         (fs/path pages-dir (str provider ".adoc"))
+                         {:replace-existing true}))))}
 
          lint:copy-configs
          {:doc  "Copy clj-kondo configs from dependencies"

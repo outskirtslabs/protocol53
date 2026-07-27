@@ -1,0 +1,86 @@
+= Porkbun provider
+
+The https://porkbun.com[Porkbun] provider implements all
+https://github.com/outskirtslabs/protocol53[Protocol53] operations with
+Porkbun's v3 API.
+
+== Installation
+
+Until the first release, use the provider's Git coordinate:
+
+[source,clojure]
+----
+{:deps {com.outskirtslabs/protocol53-porkbun
+        {:git/url "https://github.com/outskirtslabs/protocol53.git"
+         :git/sha "4a0ad834256d7e1e1a6a95936ea5e7ca14f13988"
+         :deps/root "providers/porkbun"}}}
+----
+
+The provider module also brings in the shared Protocol53 API.
+
+== Authentication
+
+Enable API access for the Porkbun account and each domain the provider should
+manage, then create an API key and secret key.
+
+[source,clojure]
+----
+(require '[ol.protocol53.porkbun :as porkbun])
+
+(def dns
+  (porkbun/provider {:api-key    "pk1_..."
+                     :secret-key "sk1_..."}))
+----
+
+Pass a caller-built `java.net.http.HttpClient` as `:http-client` when advanced
+HTTP policy requires Java interop.
+
+== Record Behavior
+
+Porkbun derives its minimum record TTL from account settings; 600 seconds is
+the typical floor. The provider raises lower requests to 600, then rereads the
+zone after append and set operations so it returns the TTL Porkbun actually
+stored. MX and SRV priorities are translated between Protocol53's portable
+record data and Porkbun's separate `prio` field.
+
+== Integration Tests
+
+[WARNING]
+====
+Run the lifecycle suite only against a dedicated disposable zone. It creates,
+replaces, and deletes DNS records whose effective owner starts with
+`p53test-`.
+====
+
+Set these variables in the process environment or the repository `.env` file.
+Process values take precedence over `.env` values.
+
+[cols="1,1,3", options="header"]
+|===
+| Variable
+| Required
+| Description
+
+| `PORKBUN_API_KEY`
+| yes
+| Porkbun API key with access to the test domain.
+
+| `PORKBUN_SECRET_KEY`
+| yes
+| Secret key paired with the API key.
+
+| `PORKBUN_DOMAIN`
+| yes
+| Dedicated zone, with or without a trailing dot.
+|===
+
+Run the Porkbun lifecycle suite from the repository root:
+
+[source,shell]
+----
+bb test:integration --provider porkbun
+----
+
+The wrapper ignores TTL differences because Porkbun applies the test account's
+minimum to fixture TTLs. Do not run concurrent lifecycle suites against one
+zone.
