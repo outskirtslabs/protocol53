@@ -27,15 +27,6 @@ after append and set operations so it returns the TTL Porkbun actually stored.
 MX and SRV priorities are translated between protocol53's portable record data
 and Porkbun's separate `prio` field.
 
-Set operations validate every desired value with Porkbun's `dryRun` mode before
-writing. Within each selected RRset they preserve matching records, edit
-replacements by ID, create surplus values before deleting stale ones, and stop
-before later RRsets if a write fails. Delete operations first retrieve the zone
-and then remove matching records by ID, so partial selectors and multi-value
-RRsets retain protocol53 semantics. An error after any dispatched write reports
-`:zone-state :unknown`; reread the zone before reconciliation. Callers
-must coordinate concurrent mutations of the same RRset.
-
 ## Integration Tests
 
 > [!WARNING]

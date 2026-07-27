@@ -394,6 +394,142 @@
             "/api/json/v3/dns/retrieve/example.com"]
         (some #(str/includes? (:path %) "/dns/delete/") @calls) => nil)))
 
+  (behavior "executes complete set plans in RRset and action order"
+    (let [calls    (atom [])
+          existing [(api-record "31" "www.example.com" 600 "A" "192.0.2.1")
+                    (api-record "32" "www.example.com" 600 "A" "192.0.2.2")
+                    (api-record "33" "later.example.com" 600 "TXT" "old-1")
+                    (api-record "34" "later.example.com" 600 "TXT" "old-2")]
+          desired  [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+                    {:name "www" :ttl 600 :type "A" :data "192.0.2.3"}
+                    {:name "www" :ttl 600 :type "A" :data "192.0.2.4"}
+                    {:name "later" :ttl 600 :type "TXT" :data "new"}]
+          stored   [(api-record "31" "www.example.com" 600 "A" "192.0.2.1")
+                    (api-record "32" "www.example.com" 600 "A" "192.0.2.3")
+                    (api-record "35" "www.example.com" 600 "A" "192.0.2.4")
+                    (api-record "33" "later.example.com" 600 "TXT" "new")]
+          valid    (response {:status "SUCCESS" :wouldSucceed true})
+          written  (response {:status "SUCCESS"})
+          client   (scripted-client
+                    [(response (dns-response existing))
+                     valid
+                     valid
+                     valid
+                     valid
+                     written
+                     written
+                     written
+                     written
+                     (response (dns-response stored))]
+                    calls)
+          result   (p53/set-records!
+                    (provider client) "example.com." desired (opts))]
+
+      (assertions
+        result => {:ol.protocol53/result {:records desired}}
+        "finishes each RRset's edits, creates, and stale deletes before the next"
+        (mapv :path @calls)
+        => ["/api/json/v3/dns/retrieve/example.com"
+            "/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/edit/example.com/32"
+            "/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/edit/example.com/33"
+            "/api/json/v3/dns/delete/example.com/34"
+            "/api/json/v3/dns/retrieve/example.com"]
+        (mapv #(select-keys (:body %) [:name :type :content])
+              (take 4 (drop 5 @calls)))
+        => [{:name "www" :type "A" :content "192.0.2.3"}
+            {:name "www" :type "A" :content "192.0.2.4"}
+            {:name "later" :type "TXT" :content "new"}
+            {}])))
+
+  (behavior "keeps a later pre-dispatch deadline failure uncertain"
+    (let [calls  (atom [])
+          checks (atom 0)
+          client (scripted-client
+                  [(response {:id "41" :status "SUCCESS"})]
+                  calls)
+          result (with-redefs [deadline/expired? (constantly false)
+                               deadline/remaining
+                               (fn [_]
+                                 (if (= 1 (swap! checks inc))
+                                   (Duration/ofSeconds 5)
+                                   (Duration/ofNanos 999999)))]
+                   (p53/append-records!
+                    (provider client)
+                    "example.com."
+                    [{:name "one" :ttl 600 :type "A" :data "192.0.2.1"}
+                     {:name "two" :ttl 600 :type "A" :data "192.0.2.2"}]
+                    (opts)))]
+
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :deadline-exceeded
+             :message    "Deadline exceeded during Porkbun request"
+             :operation  :append-records
+             :provider   :porkbun
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? false}}
+        (mapv :path @calls) => ["/api/json/v3/dns/create/example.com"])))
+
+  (behavior "classifies stored-record reread failures from the immutable plan"
+    (let [record          {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          existing        (api-record "24" "www.example.com" 600 "A" "192.0.2.1")
+          no-action-calls (atom [])
+          written-calls   (atom [])
+          no-action       (p53/set-records!
+                           (provider
+                            (scripted-client
+                             [(response (dns-response [existing]))
+                              (response {:status "SUCCESS" :wouldSucceed true})
+                              (response 503 {} "unavailable")]
+                             no-action-calls))
+                           "example.com."
+                           [record]
+                           (opts))
+          written         (p53/append-records!
+                           (provider
+                            (scripted-client
+                             [(response {:id "25" :status "SUCCESS"})
+                              (response {:status "SUCCESS"})]
+                             written-calls))
+                           "example.com."
+                           [record]
+                           (opts))]
+      (assertions
+        "keeps a reread after an empty action plan unchanged"
+        no-action
+        => {:ol.protocol53/error
+            {:type       :provider-request
+             :message    "Porkbun request failed with HTTP 503"
+             :operation  :set-records
+             :provider   :porkbun
+             :zone       "example.com."
+             :zone-state :unchanged
+             :retryable? true}}
+        (mapv :path @no-action-calls)
+        => ["/api/json/v3/dns/retrieve/example.com"
+            "/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/retrieve/example.com"]
+        "marks a malformed reread after a dispatched action uncertain"
+        written
+        => {:ol.protocol53/error
+            {:type       :provider-response
+             :message    "Porkbun returned an invalid response"
+             :operation  :append-records
+             :provider   :porkbun
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? false}}
+        (mapv :path @written-calls)
+        => ["/api/json/v3/dns/create/example.com"
+            "/api/json/v3/dns/retrieve/example.com"])))
+
   (behavior "validates every desired record before changing an RRset"
     (let [calls    (atom [])
           existing [(api-record "26" "later.example.com" 600 "TXT" "old")]
@@ -698,6 +834,28 @@
              :zone       "example.com."
              :zone-state :unknown
              :retryable? true}})))
+
+  (behavior "marks a non-IO transport failure after write dispatch uncertain"
+    (let [calls  (atom [])
+          client (scripted-client
+                  [{:throw (IllegalStateException. "transport failed")}]
+                  calls)
+          result (p53/append-records!
+                  (provider client)
+                  "example.com."
+                  [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}]
+                  (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :provider-request
+             :message    "Porkbun request failed"
+             :operation  :append-records
+             :provider   :porkbun
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? false}}
+        (count @calls) => 1)))
 
   (behavior "retries transient mutation failures with one idempotency key"
     (let [calls  (atom [])

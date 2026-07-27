@@ -40,14 +40,15 @@
   (fail! :provider-response "Porkbun returned an invalid response" false))
 
 (defn- operation-outcome
-  [operation result-key zone mutated? f]
+  [operation result-key zone mutation? f]
   (try
     {:ol.protocol53/result {result-key (f)}}
     (catch clojure.lang.ExceptionInfo cause
       (if-not (::failure (ex-data cause))
         (throw cause)
-        (let [{type      ::type
-               retryable ::retryable} (ex-data cause)]
+        (let [{type       ::type
+               retryable  ::retryable
+               zone-state ::zone-state} (ex-data cause)]
           {:ol.protocol53/error
            (cond-> {:type       type
                     :message    (ex-message cause)
@@ -55,8 +56,7 @@
                     :provider   :porkbun
                     :retryable? retryable}
              zone (assoc :zone zone)
-             mutated? (assoc :zone-state
-                             (if @mutated? :unknown :unchanged)))})))))
+             mutation? (assoc :zone-state (or zone-state :unchanged)))})))))
 
 (defn- timeout-millis [operation-deadline]
   (let [^Duration remaining (deadline/remaining operation-deadline)]
@@ -140,10 +140,17 @@
       (str/starts-with? path "/dns/edit/")
       (str/starts-with? path "/dns/delete/")))
 
+(defn- zone-unknown [cause]
+  (if (::failure (ex-data cause))
+    (ex-info (ex-message cause)
+             (assoc (ex-data cause) ::zone-state :unknown)
+             cause)
+    cause))
+
 (defn- request!
   ([provider operation-deadline path body]
-   (request! provider operation-deadline path body nil))
-  ([provider operation-deadline path body mutation-started!]
+   (request! provider operation-deadline path body false))
+  ([provider operation-deadline path body write?]
    (let [mutation? (mutation-path? path)
          headers   (cond-> {"Content-Type" "application/json"}
                      mutation? (assoc "Idempotency-Key" (str (random-uuid))))
@@ -155,74 +162,105 @@
                             :throw   false}
                      (:http-client provider) (assoc :client
                                                     (:http-client provider)))]
-     (loop [attempt 1]
-       (let [timeout (timeout-millis operation-deadline)
-             _       (when-not (pos? timeout)
-                       (fail! :deadline-exceeded
-                              "Deadline exceeded during Porkbun request"
-                              false))
-             _       (when mutation-started! (mutation-started!))
-             result  (try
-                       {:response (http/request (assoc request :timeout timeout))}
-                       (catch InterruptedException cause
-                         (.interrupt (Thread/currentThread))
-                         (fail! :provider-request
-                                "Porkbun request failed"
-                                true
-                                cause))
-                       (catch IOException cause
-                         {:transport-failure cause})
-                       (catch Exception cause
-                         (fail! :provider-request
-                                "Porkbun request failed"
-                                false
-                                cause)))]
-         (if-let [cause (:transport-failure result)]
-           (if (and mutation? (< attempt max-mutation-attempts))
+     (loop [attempt           1
+            write-dispatched? false]
+       (let [timeout (timeout-millis operation-deadline)]
+         (when-not (pos? timeout)
+           (try
+             (fail! :deadline-exceeded
+                    "Deadline exceeded during Porkbun request"
+                    false)
+             (catch clojure.lang.ExceptionInfo cause
+               (throw (if write-dispatched?
+                        (zone-unknown cause)
+                        cause)))))
+         (let [result   (try
+                          (try
+                            {:response (http/request
+                                        (assoc request :timeout timeout))}
+                            (catch InterruptedException cause
+                              (.interrupt (Thread/currentThread))
+                              (fail! :provider-request
+                                     "Porkbun request failed"
+                                     true
+                                     cause))
+                            (catch IOException cause
+                              {:transport-failure cause})
+                            (catch Exception cause
+                              (fail! :provider-request
+                                     "Porkbun request failed"
+                                     false
+                                     cause)))
+                          (catch clojure.lang.ExceptionInfo cause
+                            (throw (if write?
+                                     (zone-unknown cause)
+                                     cause))))
+               decision (try
+                          (if-let [cause (:transport-failure result)]
+                            (if (and mutation?
+                                     (< attempt max-mutation-attempts))
+                              {:retry [nil nil]}
+                              (fail! :provider-request
+                                     "Porkbun request failed"
+                                     true
+                                     cause))
+                            (let [response   (:response result)
+                                  status     (long (or (:status response) 0))
+                                  error-body (when-not (<= 200 status 299)
+                                               (maybe-parsed-body response))
+                                  error-code (:code error-body)
+                                  replay?    (and (= status 409)
+                                                  (= "IDEMPOTENCY_KEY_IN_USE"
+                                                     error-code))
+                                  retryable? (or (= status 429)
+                                                 (>= status 500)
+                                                 replay?)]
+                              (ensure-time! operation-deadline)
+                              (cond
+                                (and mutation?
+                                     retryable?
+                                     (< attempt max-mutation-attempts))
+                                {:retry [response error-body]}
+
+                                (not (<= 200 status 299))
+                                (fail! :provider-request
+                                       (str "Porkbun request failed with HTTP "
+                                            status)
+                                       retryable?
+                                       nil
+                                       {::code error-code})
+
+                                :else
+                                (let [response-body (parsed-body response)]
+                                  (case (:status response-body)
+                                    "SUCCESS" {:body response-body}
+                                    "ERROR" (if (and mutation?
+                                                     (< attempt
+                                                        max-mutation-attempts)
+                                                     (= "RATE_LIMIT_EXCEEDED"
+                                                        (:code response-body)))
+                                              {:retry [response response-body]}
+                                              (fail! :provider-request
+                                                     "Porkbun returned an unsuccessful response"
+                                                     (= "RATE_LIMIT_EXCEEDED"
+                                                        (:code response-body))
+                                                     nil
+                                                     {::code (:code response-body)}))
+                                    (invalid-response!))))))
+                          (catch clojure.lang.ExceptionInfo cause
+                            (throw (if write?
+                                     (zone-unknown cause)
+                                     cause))))]
+           (if-let [[response response-body] (:retry decision)]
              (do
-               (wait-for-retry! operation-deadline nil nil)
-               (recur (inc attempt)))
-             (fail! :provider-request "Porkbun request failed" true cause))
-           (let [response   (:response result)
-                 status     (long (or (:status response) 0))
-                 error-body (when-not (<= 200 status 299)
-                              (maybe-parsed-body response))
-                 error-code (:code error-body)
-                 replay?    (and (= status 409)
-                                 (= "IDEMPOTENCY_KEY_IN_USE" error-code))
-                 retryable? (or (= status 429) (>= status 500) replay?)]
-             (ensure-time! operation-deadline)
-             (cond
-               (and mutation?
-                    retryable?
-                    (< attempt max-mutation-attempts))
-               (do
-                 (wait-for-retry! operation-deadline response error-body)
-                 (recur (inc attempt)))
-
-               (not (<= 200 status 299))
-               (fail! :provider-request
-                      (str "Porkbun request failed with HTTP " status)
-                      retryable?
-                      nil
-                      {::code error-code})
-
-               :else
-               (let [body (parsed-body response)]
-                 (case (:status body)
-                   "SUCCESS" body
-                   "ERROR" (if (and mutation?
-                                    (< attempt max-mutation-attempts)
-                                    (= "RATE_LIMIT_EXCEEDED" (:code body)))
-                             (do
-                               (wait-for-retry! operation-deadline response body)
-                               (recur (inc attempt)))
-                             (fail! :provider-request
-                                    "Porkbun returned an unsuccessful response"
-                                    (= "RATE_LIMIT_EXCEEDED" (:code body))
-                                    nil
-                                    {::code (:code body)}))
-                   (invalid-response!)))))))))))
+               (try
+                 (wait-for-retry! operation-deadline response response-body)
+                 (catch clojure.lang.ExceptionInfo cause
+                   (throw (if write?
+                            (zone-unknown cause)
+                            cause))))
+               (recur (inc attempt) (or write-dispatched? write?)))
+             (:body decision))))))))
 
 (defn- normalized-zone [zone]
   (-> zone
@@ -442,36 +480,33 @@
   (mapv :record
         (api-record-entries! provider operation-deadline zone)))
 
-(defn- mark-mutation [mutated?]
-  #(vreset! mutated? true))
-
 (defn- create-record!
-  [provider operation-deadline zone payload mutated?]
+  [provider operation-deadline zone payload]
   (request! provider
             operation-deadline
             (str "/dns/create/" (normalized-zone zone))
             payload
-            (mark-mutation mutated?)))
+            true))
 
 (defn- edit-record!
-  [provider operation-deadline zone id payload mutated?]
+  [provider operation-deadline zone id payload]
   (when-not (and (string? id) (re-matches #"\d+" id))
     (invalid-response!))
   (request! provider
             operation-deadline
             (str "/dns/edit/" (normalized-zone zone) "/" id)
             payload
-            (mark-mutation mutated?)))
+            true))
 
 (defn- delete-record!
-  [provider operation-deadline zone id mutated?]
+  [provider operation-deadline zone id]
   (when-not (and (string? id) (re-matches #"\d+" id))
     (invalid-response!))
   (request! provider
             operation-deadline
             (str "/dns/delete/" (normalized-zone zone) "/" id)
             {}
-            (mark-mutation mutated?))
+            true)
   nil)
 
 (defn- record-identity [record]
@@ -500,14 +535,6 @@
         (invalid-response!))
       result)))
 
-(defn- append-records*
-  [provider operation-deadline zone records mutated?]
-  (let [payloads (mapv #(record-payload % zone) records)
-        desired  (mapv #(normalized-record % zone) records)]
-    (doseq [payload payloads]
-      (create-record! provider operation-deadline zone payload mutated?))
-    (records-as-stored! provider operation-deadline zone desired)))
-
 (defn- rrset-key [record]
   [(.toLowerCase ^String (:name record) Locale/ROOT)
    (canonical-type (:type record))])
@@ -532,26 +559,74 @@
         (recur existing (subvec desired 1) (conj unmatched wanted)))
       {:existing existing :desired unmatched})))
 
-(defn- apply-rrset!
-  [provider operation-deadline zone existing desired mutated?]
+(defn- rrset-actions [existing desired]
   (let [{unmatched-existing :existing
          unmatched-desired  :desired} (unmatched-rrset existing desired)
         pair-count                    (min (count unmatched-existing)
                                            (count unmatched-desired))]
-    (doseq [index (range pair-count)]
-      (edit-record! provider
-                    operation-deadline
-                    zone
-                    (:id (nth unmatched-existing index))
-                    (:payload (nth unmatched-desired index))
-                    mutated?))
-    (doseq [{:keys [payload]} (drop pair-count unmatched-desired)]
-      (create-record! provider operation-deadline zone payload mutated?))
-    (doseq [{:keys [id]} (drop pair-count unmatched-existing)]
-      (delete-record! provider operation-deadline zone id mutated?))))
+    (vec
+     (concat
+      (map (fn [existing desired]
+             {:action  :edit
+              :id      (:id existing)
+              :payload (:payload desired)})
+           (take pair-count unmatched-existing)
+           (take pair-count unmatched-desired))
+      (map (fn [{:keys [payload]}]
+             {:action :create :payload payload})
+           (drop pair-count unmatched-desired))
+      (map (fn [{:keys [id]}]
+             {:action :delete :id id})
+           (drop pair-count unmatched-existing))))))
+
+(defn- execute-action!
+  [provider operation-deadline zone {:keys [action id payload]}]
+  (case action
+    :create (create-record! provider operation-deadline zone payload)
+    :edit (edit-record! provider operation-deadline zone id payload)
+    :delete (delete-record! provider operation-deadline zone id)))
+
+(defn- execute-actions!
+  [provider operation-deadline zone actions]
+  (loop [remaining         actions
+         write-dispatched? false]
+    (if-let [action (first remaining)]
+      (do
+        (try
+          (execute-action! provider operation-deadline zone action)
+          (catch clojure.lang.ExceptionInfo cause
+            (throw (if write-dispatched?
+                     (zone-unknown cause)
+                     cause))))
+        (recur (subvec remaining 1) true))
+      write-dispatched?)))
+
+(defn- records-after-actions!
+  [provider operation-deadline zone actions desired]
+  (let [write-dispatched? (execute-actions! provider
+                                            operation-deadline
+                                            zone
+                                            actions)]
+    (try
+      (records-as-stored! provider operation-deadline zone desired)
+      (catch clojure.lang.ExceptionInfo cause
+        (throw (if write-dispatched?
+                 (zone-unknown cause)
+                 cause))))))
+
+(defn- append-records*
+  [provider operation-deadline zone records]
+  (let [payloads (mapv #(record-payload % zone) records)
+        desired  (mapv #(normalized-record % zone) records)
+        actions  (mapv #(hash-map :action :create :payload %) payloads)]
+    (records-after-actions! provider
+                            operation-deadline
+                            zone
+                            actions
+                            desired)))
 
 (defn- set-records*
-  [provider operation-deadline zone records mutated?]
+  [provider operation-deadline zone records]
   (let [desired  (mapv (fn [record]
                          {:payload (record-payload record zone)
                           :record  (normalized-record record zone)})
@@ -560,17 +635,19 @@
         keys     (distinct (map (comp rrset-key :record) desired))]
     (doseq [{:keys [payload]} desired]
       (validate-record! provider operation-deadline zone payload))
-    (doseq [key keys]
-      (apply-rrset! provider
-                    operation-deadline
-                    zone
-                    (filterv #(= key (rrset-key (:record %))) existing)
-                    (filterv #(= key (rrset-key (:record %))) desired)
-                    mutated?))
-    (records-as-stored! provider
-                        operation-deadline
-                        zone
-                        (mapv :record desired))))
+    (let [actions (into []
+                        (mapcat (fn [key]
+                                  (rrset-actions
+                                   (filterv #(= key (rrset-key (:record %)))
+                                            existing)
+                                   (filterv #(= key (rrset-key (:record %)))
+                                            desired))))
+                        keys)]
+      (records-after-actions! provider
+                              operation-deadline
+                              zone
+                              actions
+                              (mapv :record desired)))))
 
 (defn- normalized-selector [selector zone]
   (let [selector (cond-> {:name (portable-name
@@ -604,27 +681,27 @@
            (= (:data selector) (:data record)))))
 
 (defn- delete-records*
-  [provider operation-deadline zone selectors mutated?]
+  [provider operation-deadline zone selectors]
   (let [selectors (mapv #(normalized-selector % zone) selectors)
         matches   (filterv (fn [{:keys [record]}]
                              (some #(selector-match? % record) selectors))
                            (api-record-entries! provider
                                                 operation-deadline
-                                                zone))]
-    (doseq [{:keys [id]} matches]
-      (delete-record! provider operation-deadline zone id mutated?))
+                                                zone))
+        actions   (mapv (fn [{:keys [id]}]
+                          {:action :delete :id id})
+                        matches)]
+    (execute-actions! provider operation-deadline zone actions)
     (mapv :record matches)))
 
 (defn- mutation-outcome [operation zone f]
-  (let [mutated? (volatile! false)]
-    (operation-outcome operation :records zone mutated?
-                       #(f mutated?))))
+  (operation-outcome operation :records zone true f))
 
 (defrecord Provider [api-key secret-key http-client]
   protocols/RecordGetter
   (-get-records! [this zone opts]
     (operation-outcome
-     :get-records :records zone nil
+     :get-records :records zone false
      #(get-records* this (:deadline opts) zone)))
 
   protocols/RecordAppender
@@ -633,7 +710,7 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :append-records zone
-       #(append-records* this (:deadline opts) zone records %))))
+       #(append-records* this (:deadline opts) zone records))))
 
   protocols/RecordSetter
   (-set-records! [this zone records opts]
@@ -641,7 +718,7 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :set-records zone
-       #(set-records* this (:deadline opts) zone records %))))
+       #(set-records* this (:deadline opts) zone records))))
 
   protocols/RecordDeleter
   (-delete-records! [this zone selectors opts]
@@ -649,12 +726,12 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :delete-records zone
-       #(delete-records* this (:deadline opts) zone selectors %))))
+       #(delete-records* this (:deadline opts) zone selectors))))
 
   protocols/ZoneLister
   (-list-zones! [this opts]
     (operation-outcome
-     :list-zones :zones nil nil
+     :list-zones :zones nil false
      #(list-zones* this (:deadline opts)))))
 
 (def ^:private ^String redacted-provider

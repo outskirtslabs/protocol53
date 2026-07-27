@@ -30,14 +30,15 @@
   (fail! :provider-response "deSEC returned an invalid response" false))
 
 (defn- operation-outcome
-  [operation result-key zone mutated? f]
+  [operation result-key zone mutation? f]
   (try
     {:ol.protocol53/result {result-key (f)}}
     (catch clojure.lang.ExceptionInfo cause
       (if-not (::failure (ex-data cause))
         (throw cause)
-        (let [{type      ::type
-               retryable ::retryable} (ex-data cause)]
+        (let [{type       ::type
+               retryable  ::retryable
+               zone-state ::zone-state} (ex-data cause)]
           {:ol.protocol53/error
            (cond-> {:type       type
                     :message    (ex-message cause)
@@ -45,8 +46,7 @@
                     :provider   :desec
                     :retryable? retryable}
              zone (assoc :zone zone)
-             mutated? (assoc :zone-state
-                             (if @mutated? :unknown :unchanged)))})))))
+             mutation? (assoc :zone-state (or zone-state :unchanged)))})))))
 
 (defn- timeout-millis [operation-deadline]
   (let [^Duration remaining (deadline/remaining operation-deadline)]
@@ -106,55 +106,83 @@
                false
                cause)))))
 
+(defn- zone-unknown [cause]
+  (if (::failure (ex-data cause))
+    (ex-info (ex-message cause)
+             (assoc (ex-data cause) ::zone-state :unknown)
+             cause)
+    cause))
+
+(defn- request-attempt! [operation-deadline request]
+  (let [response (try
+                   (http/request request)
+                   (catch InterruptedException cause
+                     (.interrupt (Thread/currentThread))
+                     (fail! :provider-request
+                            "deSEC request failed"
+                            true
+                            cause))
+                   (catch Exception cause
+                     (fail! :provider-request
+                            "deSEC request failed"
+                            (instance? IOException cause)
+                            cause)))
+        status   (long (or (:status response) 0))]
+    (ensure-time! operation-deadline)
+    (cond
+      (= status 429)
+      {:retry-after (retry-after-seconds response)}
+
+      (not (<= 200 status 299))
+      (fail! :provider-request
+             (str "deSEC request failed with HTTP " status)
+             (>= status 500))
+
+      :else
+      {:response (assoc response :body (parsed-body response))})))
+
 (defn- request!
-  [provider operation-deadline {:keys [method path uri query body]}]
-  (loop []
-    (let [headers  (cond-> {"Authorization" (str "Token " (:token provider))
-                            "Accept"        "application/json; charset=utf-8"}
-                     body (assoc "Content-Type"
-                                 "application/json; charset=utf-8"))
-          request  (cond-> {:uri     (or uri (str base-url path))
-                            :method  method
-                            :headers headers
-                            :throw   false}
-                     (seq query) (assoc :query-params query)
-                     body (assoc :body (json/write-str body))
-                     (:http-client provider) (assoc :client
-                                                    (:http-client provider)))
-          timeout  (timeout-millis operation-deadline)
-          _        (when-not (pos? timeout)
-                     (fail! :deadline-exceeded
-                            "Deadline exceeded during deSEC request"
-                            false))
-          response (try
-                     (http/request (assoc request :timeout timeout))
-                     (catch InterruptedException cause
-                       (.interrupt (Thread/currentThread))
-                       (fail! :provider-request
-                              "deSEC request failed"
-                              true
-                              cause))
-                     (catch Exception cause
-                       (fail! :provider-request
-                              "deSEC request failed"
-                              (instance? IOException cause)
-                              cause)))
-          status   (long (or (:status response) 0))]
-      (ensure-time! operation-deadline)
-      (cond
-        (= status 429)
-        (do
-          (wait-for-retry! operation-deadline
-                           (retry-after-seconds response))
-          (recur))
-
-        (not (<= 200 status 299))
-        (fail! :provider-request
-               (str "deSEC request failed with HTTP " status)
-               (>= status 500))
-
-        :else
-        (assoc response :body (parsed-body response))))))
+  [provider operation-deadline {:keys [method path uri query body mutation?]}]
+  (let [headers (cond-> {"Authorization" (str "Token " (:token provider))
+                         "Accept"        "application/json; charset=utf-8"}
+                  body (assoc "Content-Type"
+                              "application/json; charset=utf-8"))
+        request (cond-> {:uri     (or uri (str base-url path))
+                         :method  method
+                         :headers headers
+                         :throw   false}
+                  (seq query) (assoc :query-params query)
+                  body (assoc :body (json/write-str body))
+                  (:http-client provider) (assoc :client
+                                                 (:http-client provider)))]
+    (loop [mutation-dispatched? false]
+      (let [timeout (timeout-millis operation-deadline)]
+        (when-not (pos? timeout)
+          (try
+            (fail! :deadline-exceeded
+                   "Deadline exceeded during deSEC request"
+                   false)
+            (catch clojure.lang.ExceptionInfo cause
+              (throw (if mutation-dispatched?
+                       (zone-unknown cause)
+                       cause)))))
+        (let [attempt (try
+                        (request-attempt! operation-deadline
+                                          (assoc request :timeout timeout))
+                        (catch clojure.lang.ExceptionInfo cause
+                          (throw (if mutation?
+                                   (zone-unknown cause)
+                                   cause))))]
+          (if-let [seconds (:retry-after attempt)]
+            (do
+              (try
+                (wait-for-retry! operation-deadline seconds)
+                (catch clojure.lang.ExceptionInfo cause
+                  (throw (if mutation?
+                           (zone-unknown cause)
+                           cause))))
+              (recur (or mutation-dispatched? mutation?)))
+            (:response attempt)))))))
 
 (defn- normalized-zone [zone]
   (-> zone
@@ -388,27 +416,27 @@
         (list-rrsets! provider operation-deadline zone)))
 
 (defn- put-rrsets!
-  [provider operation-deadline zone payloads mutated?]
+  [provider operation-deadline zone payloads]
   (if (empty? payloads)
     []
-    (do
-      (vreset! mutated? true)
-      (let [stored (:body (request! provider
-                                    operation-deadline
-                                    {:method :put
-                                     :path   (rrsets-path zone)
-                                     :body   payloads}))]
+    (let [stored (:body (request! provider
+                                  operation-deadline
+                                  {:method    :put
+                                   :path      (rrsets-path zone)
+                                   :body      payloads
+                                   :mutation? true}))]
+      (try
         (when-not (vector? stored)
           (invalid-response!))
-        (mapv checked-rrset stored)))))
+        (mapv checked-rrset stored)
+        (catch clojure.lang.ExceptionInfo cause
+          (throw (zone-unknown cause)))))))
 
 (defn- set-records*
-  [provider operation-deadline zone records mutated?]
-  (->> (record-groups records zone)
-       (mapv group-payload)
-       (#(put-rrsets! provider operation-deadline zone % mutated?))
-       (mapcat portable-records)
-       vec))
+  [provider operation-deadline zone records]
+  (let [plan (mapv group-payload (record-groups records zone))]
+    (into [] (mapcat portable-records)
+          (put-rrsets! provider operation-deadline zone plan))))
 
 (defn- indexed-rrsets [rrsets]
   (let [indexed (into {} (map (juxt rrset-key identity)) rrsets)]
@@ -443,7 +471,7 @@
            records)))
 
 (defn- append-records*
-  [provider operation-deadline zone records mutated?]
+  [provider operation-deadline zone records]
   (let [groups   (record-groups records zone)
         existing (indexed-rrsets
                   (list-rrsets! provider operation-deadline zone))
@@ -462,8 +490,7 @@
         stored   (put-rrsets! provider
                               operation-deadline
                               zone
-                              (mapv :payload changes)
-                              mutated?)
+                              (mapv :payload changes))
         before   (into [] (mapcat portable-records)
                        (keep :before changes))]
     (records-minus (into [] (mapcat portable-records) stored)
@@ -505,23 +532,21 @@
    rrsets))
 
 (defn- delete-records*
-  [provider operation-deadline zone selectors mutated?]
+  [provider operation-deadline zone selectors]
   (let [{:keys [payloads deleted]}
         (delete-plan (list-rrsets! provider operation-deadline zone)
                      (mapv #(normalized-selector % zone) selectors))]
-    (put-rrsets! provider operation-deadline zone payloads mutated?)
+    (put-rrsets! provider operation-deadline zone payloads)
     deleted))
 
 (defn- mutation-outcome [operation zone f]
-  (let [mutated? (volatile! false)]
-    (operation-outcome operation :records zone mutated?
-                       #(f mutated?))))
+  (operation-outcome operation :records zone true f))
 
 (defrecord Provider [token http-client]
   protocols/RecordGetter
   (-get-records! [this zone opts]
     (operation-outcome
-     :get-records :records zone nil
+     :get-records :records zone false
      #(get-records* this (:deadline opts) zone)))
 
   protocols/RecordAppender
@@ -530,7 +555,7 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :append-records zone
-       #(append-records* this (:deadline opts) zone records %))))
+       #(append-records* this (:deadline opts) zone records))))
 
   protocols/RecordSetter
   (-set-records! [this zone records opts]
@@ -538,7 +563,7 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :set-records zone
-       #(set-records* this (:deadline opts) zone records %))))
+       #(set-records* this (:deadline opts) zone records))))
 
   protocols/RecordDeleter
   (-delete-records! [this zone selectors opts]
@@ -546,12 +571,12 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :delete-records zone
-       #(delete-records* this (:deadline opts) zone selectors %))))
+       #(delete-records* this (:deadline opts) zone selectors))))
 
   protocols/ZoneLister
   (-list-zones! [this opts]
     (operation-outcome
-     :list-zones :zones nil nil
+     :list-zones :zones nil false
      #(list-zones* this (:deadline opts)))))
 
 (defn provider

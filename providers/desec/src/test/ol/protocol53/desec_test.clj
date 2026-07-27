@@ -463,6 +463,140 @@
                    :zone-state :unknown
                    :retryable? false}})))
 
+  (behavior "keeps a rate-limited bulk mutation uncertain when its retry cannot begin"
+    (let [calls  (atom [])
+          checks (atom 0)
+          client (scripted-client
+                  [(response 429 {"Retry-After" "5"} "slow down")]
+                  calls)
+          result (with-redefs [deadline/expired? (constantly false)
+                               deadline/remaining
+                               (fn [_]
+                                 (if (= 1 (swap! checks inc))
+                                   (Duration/ofSeconds 5)
+                                   (Duration/ofSeconds 1)))]
+                   (p53/set-records!
+                    (desec/provider {:token "dns-token" :http-client client})
+                    "example.com."
+                    [{:name "www" :ttl 3600 :type "A" :data "192.0.2.1"}]
+                    (opts)))]
+
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :deadline-exceeded
+             :message    "Deadline exceeded while waiting for deSEC rate limit"
+             :operation  :set-records
+             :provider   :desec
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? false}}
+        (mapv :method @calls) => [:put])))
+
+  (behavior "marks a write-boundary transport failure uncertain"
+    (let [calls  (atom [])
+          client (scripted-client
+                  [(response [])
+                   {:throw (java.io.IOException. "offline")}]
+                  calls)
+          result (p53/append-records!
+                  (desec/provider {:token "dns-token" :http-client client})
+                  "example.com."
+                  [{:name "www" :ttl 3600 :type "A" :data "192.0.2.1"}]
+                  (opts))]
+
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :provider-request
+             :message    "deSEC request failed"
+             :operation  :append-records
+             :provider   :desec
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? true}}
+        (mapv :method @calls) => [:get :put])))
+
+  (behavior "plans every bulk mutation before dispatch"
+    (let [record          {:name "www" :ttl 3600 :type "A" :data "192.0.2.1"}
+          planning-calls  (atom [])
+          deadline-calls  (atom [])
+          malformed-calls (atom [])
+          no-change-calls (atom [])
+          planning        (p53/append-records!
+                           (desec/provider
+                            {:token       "dns-token"
+                             :http-client (scripted-client
+                                           [(response [{:subname "www"}])]
+                                           planning-calls)})
+                           "example.com."
+                           [record]
+                           (opts))
+          before-dispatch (with-redefs [deadline/expired? (constantly false)
+                                        deadline/remaining
+                                        (constantly (Duration/ofNanos 999999))]
+                            (p53/set-records!
+                             (desec/provider
+                              {:token       "dns-token"
+                               :http-client (scripted-client [] deadline-calls)})
+                             "example.com."
+                             [record]
+                             (opts)))
+          malformed       (p53/set-records!
+                           (desec/provider
+                            {:token       "dns-token"
+                             :http-client (scripted-client [(response {})]
+                                                           malformed-calls)})
+                           "example.com."
+                           [record]
+                           (opts))
+          no-change       (p53/delete-records!
+                           (desec/provider
+                            {:token       "dns-token"
+                             :http-client (scripted-client
+                                           [(response
+                                             [(rrset "example.com" "www" 3600 "A"
+                                                     ["192.0.2.1"])])]
+                                           no-change-calls)})
+                           "example.com."
+                           [{:name "missing"}]
+                           (opts))]
+
+      (assertions
+        "keeps discovery and validation failures unchanged"
+        planning => {:ol.protocol53/error
+                     {:type       :provider-response
+                      :message    "deSEC returned an invalid response"
+                      :operation  :append-records
+                      :provider   :desec
+                      :zone       "example.com."
+                      :zone-state :unchanged
+                      :retryable? false}}
+        (mapv :method @planning-calls) => [:get]
+        "keeps an undispatched plan unchanged"
+        before-dispatch => {:ol.protocol53/error
+                            {:type       :deadline-exceeded
+                             :message    "Deadline exceeded during deSEC request"
+                             :operation  :set-records
+                             :provider   :desec
+                             :zone       "example.com."
+                             :zone-state :unchanged
+                             :retryable? false}}
+        @deadline-calls => []
+        "marks malformed data after dispatch as uncertain"
+        malformed => {:ol.protocol53/error
+                      {:type       :provider-response
+                       :message    "deSEC returned an invalid response"
+                       :operation  :set-records
+                       :provider   :desec
+                       :zone       "example.com."
+                       :zone-state :unknown
+                       :retryable? false}}
+        (mapv :method @malformed-calls) => [:put]
+        "does not write an empty delete plan"
+        no-change => {:ol.protocol53/result {:records []}}
+        (mapv :method @no-change-calls) => [:get])))
+
   (behavior "does not issue a request for a sub-millisecond remaining budget"
     (let [calls  (atom [])
           client (scripted-client [(response [])] calls)

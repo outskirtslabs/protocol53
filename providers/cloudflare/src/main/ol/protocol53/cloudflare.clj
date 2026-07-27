@@ -33,14 +33,15 @@
   (fail! :provider-response "Cloudflare returned an invalid response" false))
 
 (defn- operation-outcome
-  [operation result-key zone mutated? f]
+  [operation result-key zone mutation? f]
   (try
     {:ol.protocol53/result {result-key (f)}}
     (catch clojure.lang.ExceptionInfo cause
       (if-not (::failure (ex-data cause))
         (throw cause)
-        (let [{type      ::type
-               retryable ::retryable} (ex-data cause)]
+        (let [{type       ::type
+               retryable  ::retryable
+               zone-state ::zone-state} (ex-data cause)]
           {:ol.protocol53/error
            (cond-> {:type       type
                     :message    (ex-message cause)
@@ -48,8 +49,7 @@
                     :provider   :cloudflare
                     :retryable? retryable}
              zone (assoc :zone zone)
-             mutated? (assoc :zone-state
-                             (if @mutated? :unknown :unchanged)))})))))
+             mutation? (assoc :zone-state (or zone-state :unchanged)))})))))
 
 (defn- timeout-millis [operation-deadline]
   (let [^Duration remaining (deadline/remaining operation-deadline)]
@@ -73,44 +73,68 @@
                false
                cause)))))
 
+(defn- zone-unknown [cause]
+  (if (::failure (ex-data cause))
+    (ex-info (ex-message cause)
+             (assoc (ex-data cause) ::zone-state :unknown)
+             cause)
+    cause))
+
 (defn- request!
   [provider operation-deadline {:keys [token method path query body]}]
+  (let [write?  (contains? #{:delete :post} method)
+        headers (cond-> {"Authorization" (str "Bearer " token)}
+                  body (assoc "Content-Type" "application/json"))
+        request (cond-> {:uri     (str base-url path)
+                         :method  method
+                         :headers headers
+                         :throw   false}
+                  (seq query) (assoc :query-params query)
+                  body (assoc :body (json/write-str body))
+                  (:http-client provider) (assoc :client
+                                                 (:http-client provider)))
+        timeout (timeout-millis operation-deadline)]
+    (when-not (pos? timeout)
+      (fail! :deadline-exceeded
+             "Deadline exceeded during Cloudflare request"
+             false))
+    (try
+      (let [response (try
+                       (http/request (assoc request :timeout timeout))
+                       (catch InterruptedException cause
+                         (.interrupt (Thread/currentThread))
+                         (fail! :provider-request
+                                "Cloudflare request failed"
+                                true
+                                cause))
+                       (catch Exception cause
+                         (fail! :provider-request
+                                "Cloudflare request failed"
+                                (instance? IOException cause)
+                                cause)))]
+        (ensure-time! operation-deadline)
+        (let [status         (long (or (:status response) 0))
+              request-failed (str "Cloudflare request failed with HTTP " status)]
+          (when (>= status 400)
+            (fail! :provider-request
+                   request-failed
+                   (or (= status 429) (>= status 500))))
+          (let [parsed (response-body response)]
+            (cond
+              (seq (:errors parsed))
+              (fail! :provider-request request-failed false)
 
-  (let [headers  (cond-> {"Authorization" (str "Bearer " token)}
-                   body (assoc "Content-Type" "application/json"))
-        request  (cond-> {:uri     (str base-url path)
-                          :method  method
-                          :headers headers
-                          :throw   false}
-                   (seq query) (assoc :query-params query)
-                   body (assoc :body (json/write-str body))
-                   (:http-client provider) (assoc :client
-                                                  (:http-client provider)))
-        timeout  (timeout-millis operation-deadline)
-        _        (when-not (pos? timeout)
-                   (fail! :deadline-exceeded "Deadline exceeded during Cloudflare request" false))
-        response (try
-                   (http/request (assoc request :timeout timeout))
-                   (catch InterruptedException cause
-                     (.interrupt (Thread/currentThread))
-                     (fail! :provider-request "Cloudflare request failed" true cause))
-                   (catch Exception cause
-                     (fail! :provider-request "Cloudflare request failed" (instance? IOException cause) cause)))]
-    (ensure-time! operation-deadline)
-    (let [status         (long (or (:status response) 0))
-          request-failed (str "Cloudflare request failed with HTTP " status)]
-      (when (>= status 400)
-        (fail! :provider-request request-failed (or (= status 429) (>= status 500))))
-      (let [parsed (response-body response)]
-        (cond
-          (seq (:errors parsed))
-          (fail! :provider-request request-failed false)
+              (not (true? (:success parsed)))
+              (fail! :provider-response
+                     "Cloudflare returned an unsuccessful response"
+                     false)
 
-          (not (true? (:success parsed)))
-          (fail! :provider-response "Cloudflare returned an unsuccessful response" false)
-
-          :else
-          parsed)))))
+              :else
+              parsed))))
+      (catch clojure.lang.ExceptionInfo cause
+        (throw (if write?
+                 (zone-unknown cause)
+                 cause))))))
 
 (defn- normalized-zone [zone]
   (str/replace zone #"\.+$" ""))
@@ -464,28 +488,61 @@
                            :query {}}))))
 
 (defn- create-record!
-  [provider operation-deadline zone zone-id payload mutated?]
-  (vreset! mutated? true)
-  (let [response (request!
-                  provider
-                  operation-deadline
-                  {:token  (:api-token provider)
-                   :method :post
-                   :path   (str "/zones/" zone-id "/dns_records")
-                   :body   payload})]
-    (portable-record (:result response) zone)))
+  [provider operation-deadline zone zone-id payload]
+  (let [response (request! provider
+                           operation-deadline
+                           {:token  (:api-token provider)
+                            :method :post
+                            :path   (str "/zones/" zone-id "/dns_records")
+                            :body   payload})]
+    (try
+      (portable-record (:result response) zone)
+      (catch clojure.lang.ExceptionInfo cause
+        (throw (zone-unknown cause))))))
+
+(defn- checked-record-id [record]
+  (let [record-id (:id record)]
+    (when-not (and (string? record-id) (seq record-id))
+      (invalid-response!))
+    record-id))
 
 (defn- delete-record!
-  [provider operation-deadline zone-id record-id mutated?]
+  [provider operation-deadline zone-id record-id]
   (when-not (and (string? record-id) (seq record-id))
     (invalid-response!))
-  (vreset! mutated? true)
   (request! provider
             operation-deadline
             {:token  (:api-token provider)
              :method :delete
              :path   (str "/zones/" zone-id "/dns_records/" record-id)})
   nil)
+
+(defn- execute-action!
+  [provider operation-deadline zone zone-id {:keys [action id payload]}]
+  (case action
+    :create (create-record! provider operation-deadline zone zone-id payload)
+    :delete (delete-record! provider operation-deadline zone-id id)))
+
+(defn- execute-actions!
+  [provider operation-deadline zone zone-id actions]
+  (loop [remaining         actions
+         write-dispatched? false
+         created           []]
+    (if-let [action (first remaining)]
+      (let [record (try
+                     (execute-action! provider
+                                      operation-deadline
+                                      zone
+                                      zone-id
+                                      action)
+                     (catch clojure.lang.ExceptionInfo cause
+                       (throw (if write-dispatched?
+                                (zone-unknown cause)
+                                cause))))]
+        (recur (subvec remaining 1)
+               true
+               (cond-> created record (conj record))))
+      created)))
 
 (defn- matching-records!
   [provider operation-deadline zone zone-id name type]
@@ -498,16 +555,11 @@
                      :query query})))
 
 (defn- append-records*
-  [provider operation-deadline zone records mutated?]
+  [provider operation-deadline zone records]
   (let [payloads (mapv #(record-payload % zone) records)
-        zone-id  (:id (zone-info! provider operation-deadline zone))]
-    (mapv #(create-record! provider
-                           operation-deadline
-                           zone
-                           zone-id
-                           %
-                           mutated?)
-          payloads)))
+        zone-id  (:id (zone-info! provider operation-deadline zone))
+        actions  (mapv #(hash-map :action :create :payload %) payloads)]
+    (execute-actions! provider operation-deadline zone zone-id actions)))
 
 (defn- rrset-key [record]
   [(.toLowerCase ^String (:name record) Locale/ROOT)
@@ -519,35 +571,33 @@
         (distinct (map rrset-key records))))
 
 (defn- set-records*
-  [provider operation-deadline zone records mutated?]
+  [provider operation-deadline zone records]
   (let [payloads-by-record (zipmap records
                                    (map #(record-payload % zone) records))
-        zone-id            (:id (zone-info! provider operation-deadline zone))]
-    (reduce
-     (fn [set-records rrset]
-       (let [[name type] (rrset-key (first rrset))
-             existing    (matching-records! provider
-                                            operation-deadline
-                                            zone
-                                            zone-id
-                                            name
-                                            type)]
-         (doseq [record existing]
-           (delete-record! provider
-                           operation-deadline
-                           zone-id
-                           (:id record)
-                           mutated?))
-         (into set-records
-               (map #(create-record! provider
-                                     operation-deadline
-                                     zone
-                                     zone-id
-                                     (payloads-by-record %)
-                                     mutated?)
-                    rrset))))
-     []
-     (selected-rrsets records))))
+        rrsets             (selected-rrsets records)
+        zone-id            (:id (zone-info! provider operation-deadline zone))
+        actions            (into []
+                                 (mapcat
+                                  (fn [rrset]
+                                    (let [[name type] (rrset-key (first rrset))
+                                          existing    (matching-records!
+                                                       provider
+                                                       operation-deadline
+                                                       zone
+                                                       zone-id
+                                                       name
+                                                       type)]
+                                      (concat
+                                       (map (fn [record]
+                                              {:action :delete
+                                               :id     (checked-record-id record)})
+                                            existing)
+                                       (map (fn [record]
+                                              {:action  :create
+                                               :payload (payloads-by-record record)})
+                                            rrset)))))
+                                 rrsets)]
+    (execute-actions! provider operation-deadline zone zone-id actions)))
 
 (defn- selector-match? [selector record]
   (and (or (not (contains? selector :type))
@@ -558,75 +608,73 @@
            (= (:data selector) (:data record)))))
 
 (defn- delete-records*
-  [provider operation-deadline zone selectors mutated?]
-  (let [zone-id (:id (zone-info! provider operation-deadline zone))]
-    (reduce
-     (fn [deleted selector]
-       (let [candidates (matching-records! provider
-                                           operation-deadline
-                                           zone
-                                           zone-id
-                                           (:name selector)
-                                           (:type selector))
-             matches    (->> candidates
-                             (map (fn [record]
-                                    {:id     (:id record)
-                                     :record (portable-record record zone)}))
-                             (filter #(selector-match? selector (:record %))))]
-         (doseq [{:keys [id]} matches]
-           (delete-record! provider
-                           operation-deadline
-                           zone-id
-                           id
-                           mutated?))
-         (into deleted (map :record matches))))
-     []
-     selectors)))
+  [provider operation-deadline zone selectors]
+  (let [zone-id    (:id (zone-info! provider operation-deadline zone))
+        discovered (vec
+                    (mapcat
+                     (fn [selector]
+                       (->> (matching-records! provider
+                                               operation-deadline
+                                               zone
+                                               zone-id
+                                               (:name selector)
+                                               (:type selector))
+                            (map (fn [record]
+                                   {:id     (checked-record-id record)
+                                    :record (portable-record record zone)}))
+                            (filter #(selector-match? selector (:record %)))))
+                     selectors))
+        matches    (second
+                    (reduce (fn [[seen unique] {:keys [id] :as match}]
+                              (if (contains? seen id)
+                                [seen unique]
+                                [(conj seen id) (conj unique match)]))
+                            [#{} []]
+                            discovered))
+        actions    (mapv (fn [{:keys [id]}]
+                           {:action :delete :id id})
+                         matches)]
+    (execute-actions! provider operation-deadline zone zone-id actions)
+    (mapv :record matches)))
 
 (defn- mutation-outcome [operation zone f]
-  (let [mutated? (volatile! false)]
-    (operation-outcome
-     operation :records zone mutated?
-     #(f mutated?))))
+  (operation-outcome operation :records zone true f))
 
 (defrecord Provider [api-token zone-token http-client]
   protocols/RecordGetter
   (-get-records! [this zone opts]
     (operation-outcome
-     :get-records :records zone nil
+     :get-records :records zone false
      #(get-records* this (:deadline opts) zone)))
 
   protocols/RecordAppender
   (-append-records! [this zone records opts]
     (if (empty? records)
       {:ol.protocol53/result {:records []}}
-      (let [operation-deadline (:deadline opts)]
-        (mutation-outcome
-         :append-records zone
-         #(append-records* this operation-deadline zone records %)))))
+      (mutation-outcome
+       :append-records zone
+       #(append-records* this (:deadline opts) zone records))))
 
   protocols/RecordSetter
   (-set-records! [this zone records opts]
     (if (empty? records)
       {:ol.protocol53/result {:records []}}
-      (let [operation-deadline (:deadline opts)]
-        (mutation-outcome
-         :set-records zone
-         #(set-records* this operation-deadline zone records %)))))
+      (mutation-outcome
+       :set-records zone
+       #(set-records* this (:deadline opts) zone records))))
 
   protocols/RecordDeleter
   (-delete-records! [this zone selectors opts]
     (if (empty? selectors)
       {:ol.protocol53/result {:records []}}
-      (let [operation-deadline (:deadline opts)]
-        (mutation-outcome
-         :delete-records zone
-         #(delete-records* this operation-deadline zone selectors %)))))
+      (mutation-outcome
+       :delete-records zone
+       #(delete-records* this (:deadline opts) zone selectors))))
 
   protocols/ZoneLister
   (-list-zones! [this opts]
     (operation-outcome
-     :list-zones :zones nil nil
+     :list-zones :zones nil false
      #(list-zones* this (:deadline opts)))))
 
 (defn provider

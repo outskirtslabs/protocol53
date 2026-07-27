@@ -483,7 +483,6 @@
                               :ttl     60
                               :type    "A"
                               :content "192.0.2.1"}])
-                   (success {:id "match"})
                    (success [{:id      "empty"
                               :name    "txt.example.com"
                               :ttl     60
@@ -494,6 +493,7 @@
                               :ttl     60
                               :type    "TXT"
                               :content "\"value\""}])
+                   (success {:id "match"})
                    (success {:id "empty"})]
                   calls)
           result (p53/delete-records!
@@ -526,6 +526,294 @@
              (mapv :path))
         => ["/client/v4/zones/zone-1/dns_records/match"
             "/client/v4/zones/zone-1/dns_records/empty"])))
+
+  (behavior "discovers every selected RRset before the first set write"
+    (let [calls   (atom [])
+          desired [{:name "www" :ttl 300 :type "A" :data "192.0.2.1"}
+                   {:name "later" :ttl 60 :type "TXT" :data "value"}]
+          client  (scripted-client
+                   [zone-response
+                    (success [])
+                    {:status 503 :body "unavailable"}]
+                   calls)
+          result  (p53/set-records!
+                   (cloudflare/provider {:api-token   "dns-token"
+                                         :http-client client})
+                   "example.com."
+                   desired
+                   (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :provider-request
+             :message    "Cloudflare request failed with HTTP 503"
+             :operation  :set-records
+             :provider   :cloudflare
+             :zone       "example.com."
+             :zone-state :unchanged
+             :retryable? true}}
+        "sends only discovery reads"
+        (mapv :method @calls) => [:get :get :get]
+        (mapv #(get-in % [:query "name"]) (rest @calls))
+        => ["www.example.com" "later.example.com"])))
+
+  (behavior "executes complete set plans in RRset order"
+    (let [calls   (atom [])
+          desired [{:name "www" :ttl 300 :type "A" :data "192.0.2.20"}
+                   {:name "www" :ttl 300 :type "A" :data "192.0.2.21"}
+                   {:name "later" :ttl 60 :type "TXT" :data "value"}]
+          client  (scripted-client
+                   [zone-response
+                    (success [{:id      "old-a-1"
+                               :name    "www.example.com"
+                               :ttl     60
+                               :type    "A"
+                               :content "192.0.2.1"}
+                              {:id      "old-a-2"
+                               :name    "www.example.com"
+                               :ttl     60
+                               :type    "A"
+                               :content "192.0.2.2"}])
+                    (success [{:id      "old-txt"
+                               :name    "later.example.com"
+                               :ttl     60
+                               :type    "TXT"
+                               :content "\"old\""}])
+                    (success {:id "old-a-1"})
+                    (success {:id "old-a-2"})
+                    (success {:id      "new-a-1"
+                              :name    "www.example.com"
+                              :ttl     300
+                              :type    "A"
+                              :content "192.0.2.20"})
+                    (success {:id      "new-a-2"
+                              :name    "www.example.com"
+                              :ttl     300
+                              :type    "A"
+                              :content "192.0.2.21"})
+                    (success {:id "old-txt"})
+                    (success {:id      "new-txt"
+                              :name    "later.example.com"
+                              :ttl     60
+                              :type    "TXT"
+                              :content "\"value\""})]
+                   calls)
+          result  (p53/set-records!
+                   (cloudflare/provider {:api-token   "dns-token"
+                                         :http-client client})
+                   "example.com."
+                   desired
+                   (opts))]
+
+      (assertions
+        result => {:ol.protocol53/result {:records desired}}
+        "finishes all discovery before each RRset's deletes and creates"
+        (mapv #(select-keys % [:method :path]) (drop 3 @calls))
+        => [{:method :delete
+             :path   "/client/v4/zones/zone-1/dns_records/old-a-1"}
+            {:method :delete
+             :path   "/client/v4/zones/zone-1/dns_records/old-a-2"}
+            {:method :post
+             :path   "/client/v4/zones/zone-1/dns_records"}
+            {:method :post
+             :path   "/client/v4/zones/zone-1/dns_records"}
+            {:method :delete
+             :path   "/client/v4/zones/zone-1/dns_records/old-txt"}
+            {:method :post
+             :path   "/client/v4/zones/zone-1/dns_records"}]
+        (mapv #(get-in % [:query "name"]) (take 2 (rest @calls)))
+        => ["www.example.com" "later.example.com"]
+        (mapv #(select-keys (:body %) [:name :type :content])
+              (filter #(= :post (:method %)) @calls))
+        => [{:name "www.example.com" :type "A" :content "192.0.2.20"}
+            {:name "www.example.com" :type "A" :content "192.0.2.21"}
+            {:name "later.example.com" :type "TXT" :content "\"value\""}])))
+
+  (behavior "validates every discovered record ID before the first set write"
+    (let [calls   (atom [])
+          desired [{:name "www" :ttl 300 :type "A" :data "192.0.2.1"}
+                   {:name "later" :ttl 60 :type "TXT" :data "value"}]
+          client  (scripted-client
+                   [zone-response
+                    (success [{:id      "old-a"
+                               :name    "www.example.com"
+                               :ttl     60
+                               :type    "A"
+                               :content "192.0.2.9"}])
+                    (success [{:name    "later.example.com"
+                               :ttl     60
+                               :type    "TXT"
+                               :content "\"old\""}])]
+                   calls)
+          result  (p53/set-records!
+                   (cloudflare/provider {:api-token   "dns-token"
+                                         :http-client client})
+                   "example.com."
+                   desired
+                   (opts))]
+
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :provider-response
+             :message    "Cloudflare returned an invalid response"
+             :operation  :set-records
+             :provider   :cloudflare
+             :zone       "example.com."
+             :zone-state :unchanged
+             :retryable? false}}
+        (mapv :method @calls) => [:get :get :get])))
+
+  (behavior "does not write when a nonempty delete plan finds no matches"
+    (let [calls  (atom [])
+          client (scripted-client [zone-response (success [])] calls)
+          result (p53/delete-records!
+                  (cloudflare/provider {:api-token   "dns-token"
+                                        :http-client client})
+                  "example.com."
+                  [{:name "missing"}]
+                  (opts))]
+
+      (assertions
+        result => {:ol.protocol53/result {:records []}}
+        (mapv :method @calls) => [:get :get])))
+
+  (behavior "keeps a later pre-dispatch deadline failure uncertain"
+    (let [calls  (atom [])
+          checks (atom 0)
+          client (scripted-client
+                  [zone-response
+                   (success {:id      "new-1"
+                             :name    "one.example.com"
+                             :ttl     300
+                             :type    "A"
+                             :content "192.0.2.1"})]
+                  calls)
+          result (with-redefs [deadline/expired? (constantly false)
+                               deadline/remaining
+                               (fn [_]
+                                 (if (< (swap! checks inc) 3)
+                                   (Duration/ofSeconds 5)
+                                   (Duration/ofNanos 999999)))]
+                   (p53/append-records!
+                    (cloudflare/provider {:api-token   "dns-token"
+                                          :http-client client})
+                    "example.com."
+                    [{:name "one" :ttl 300 :type "A" :data "192.0.2.1"}
+                     {:name "two" :ttl 300 :type "A" :data "192.0.2.2"}]
+                    (opts)))]
+
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :deadline-exceeded
+             :message    "Deadline exceeded during Cloudflare request"
+             :operation  :append-records
+             :provider   :cloudflare
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? false}}
+        (mapv :method @calls) => [:get :post])))
+
+  (behavior "marks a write-boundary transport failure uncertain"
+    (let [calls  (atom [])
+          client (scripted-client
+                  [zone-response
+                   {:throw (java.io.IOException. "offline")}]
+                  calls)
+          result (p53/append-records!
+                  (cloudflare/provider {:api-token   "dns-token"
+                                        :http-client client})
+                  "example.com."
+                  [{:name "www" :ttl 300 :type "A" :data "192.0.2.1"}]
+                  (opts))]
+
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :provider-request
+             :message    "Cloudflare request failed"
+             :operation  :append-records
+             :provider   :cloudflare
+             :zone       "example.com."
+             :zone-state :unknown
+             :retryable? true}}
+        (mapv :method @calls) => [:get :post])))
+
+  (behavior "deduplicates overlapping delete selectors before writing"
+    (let [calls      (atom [])
+          a-record   {:id      "a-1"
+                      :name    "host.example.com"
+                      :ttl     300
+                      :type    "A"
+                      :content "192.0.2.1"}
+          txt-record {:id      "txt-1"
+                      :name    "host.example.com"
+                      :ttl     60
+                      :type    "TXT"
+                      :content "\"hello\""}
+          client     (scripted-client
+                      [zone-response
+                       (success [a-record])
+                       (success [a-record txt-record])
+                       (success [a-record txt-record])
+                       (success {:id "a-1"})
+                       (success {:id "txt-1"})]
+                      calls)
+          result     (p53/delete-records!
+                      (cloudflare/provider {:api-token   "dns-token"
+                                            :http-client client})
+                      "example.com."
+                      [{:name "host" :type "A"}
+                       {:name "host"}]
+                      (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/result
+            {:records [{:name "host"
+                        :ttl  300
+                        :type "A"
+                        :data "192.0.2.1"}
+                       {:name "host"
+                        :ttl  60
+                        :type "TXT"
+                        :data "hello"}]}}
+        "discovers both selectors before deleting each record once"
+        (mapv :method @calls) => [:get :get :get :delete :delete]
+        (mapv :path (filter #(= :delete (:method %)) @calls))
+        => ["/client/v4/zones/zone-1/dns_records/a-1"
+            "/client/v4/zones/zone-1/dns_records/txt-1"])))
+
+  (behavior "keeps a complete plan unchanged when its first write cannot dispatch"
+    (let [calls  (atom [])
+          checks (atom 0)
+          client (scripted-client [zone-response (success [])] calls)
+          result (with-redefs [deadline/expired? (constantly false)
+                               deadline/remaining
+                               (fn [_]
+                                 (if (< (swap! checks inc) 3)
+                                   (Duration/ofSeconds 5)
+                                   (Duration/ofNanos 999999)))]
+                   (p53/set-records!
+                    (cloudflare/provider {:api-token   "dns-token"
+                                          :http-client client})
+                    "example.com."
+                    [{:name "www"
+                      :ttl  300
+                      :type "A"
+                      :data "192.0.2.1"}]
+                    (opts)))]
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :deadline-exceeded
+             :message    "Deadline exceeded during Cloudflare request"
+             :operation  :set-records
+             :provider   :cloudflare
+             :zone       "example.com."
+             :zone-state :unchanged
+             :retryable? false}}
+        (mapv :method @calls) => [:get :get])))
 
   (behavior "short-circuits empty mutations without discovering the zone"
     (let [calls  (atom [])
