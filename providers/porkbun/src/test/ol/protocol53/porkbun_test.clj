@@ -3,7 +3,7 @@
    [babashka.json :as json]
    [clojure.pprint :as pprint]
    [clojure.string :as str]
-   [fulcro-spec.core :refer [=> assertions behavior specification]]
+   [fulcro-spec.core :refer [=> =throws=> assertions behavior specification]]
    [ol.protocol53 :as p53]
    [ol.protocol53.deadline :as deadline]
    [ol.protocol53.porkbun :as porkbun])
@@ -857,6 +857,55 @@
              :retryable? false}}
         (count @calls) => 1)))
 
+  (behavior "re-interrupts dispatch and retry-wait interruptions"
+    (let [record   {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          invoke   (fn [step pre-interrupt?]
+                     (let [calls  (atom [])
+                           thread (Thread/currentThread)
+                           client (scripted-client [step] calls)]
+                       (try
+                         (when pre-interrupt?
+                           (.interrupt thread))
+                         [(p53/append-records!
+                           (provider client)
+                           "example.com."
+                           [record]
+                           (opts))
+                          (.isInterrupted thread)
+                          (count @calls)]
+                         (finally
+                           (Thread/interrupted)))))
+          dispatch (invoke {:throw (InterruptedException. "dispatch interrupted")}
+                           false)
+          wait     (invoke (response 503
+                                     {"Retry-After" "1"}
+                                     "unavailable")
+                           true)
+          expected {:ol.protocol53/error
+                    {:type       :provider-request
+                     :message    "Porkbun request failed"
+                     :operation  :append-records
+                     :provider   :porkbun
+                     :zone       "example.com."
+                     :zone-state :unknown
+                     :retryable? true}}]
+      (assertions
+        [dispatch wait] => (vec (repeat 2 [expected true 1])))))
+
+  (behavior "does not translate fatal transport errors"
+    (let [calls  (atom [])
+          client (scripted-client
+                  [{:throw (AssertionError. "fatal transport error")}]
+                  calls)]
+      (assertions
+        (p53/append-records!
+         (provider client)
+         "example.com."
+         [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}]
+         (opts))
+        =throws=> AssertionError
+        (count @calls) => 1)))
+
   (behavior "retries transient mutation failures with one idempotency key"
     (let [calls  (atom [])
           client (scripted-client
@@ -892,6 +941,46 @@
         (let [keys (mapv :idempotency-key (take 3 @calls))]
           [(count (distinct keys)) (boolean (seq (first keys)))])
         => [1 true])))
+
+  (behavior "retries mutation-path dry runs without making the Zone uncertain"
+    (let [calls     (atom [])
+          transient (response 503 {"Retry-After" "0"} "unavailable")
+          client    (scripted-client
+                     (into [(response (dns-response []))]
+                           (repeat 3 transient))
+                     calls)
+          record    {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          result    (p53/set-records!
+                     (provider client)
+                     "example.com."
+                     [record]
+                     (opts))
+          attempts  (subvec @calls 1)
+          keys      (mapv :idempotency-key attempts)]
+      (assertions
+        result
+        => {:ol.protocol53/error
+            {:type       :provider-request
+             :message    "Porkbun request failed with HTTP 503"
+             :operation  :set-records
+             :provider   :porkbun
+             :zone       "example.com."
+             :zone-state :unchanged
+             :retryable? true}}
+        [(mapv #(select-keys % [:path :body]) attempts)
+         (count (distinct keys))
+         (boolean (seq (first keys)))]
+        => [(vec
+             (repeat 3
+                     {:path "/api/json/v3/dns/create/example.com"
+                      :body (merge credentials
+                                   {:content "192.0.2.1"
+                                    :dryRun  true
+                                    :name    "www"
+                                    :ttl     600
+                                    :type    "A"})}))
+            1
+            true])))
 
   (behavior "retries an in-flight idempotent replay with the same key"
     (let [calls  (atom [])

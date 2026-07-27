@@ -135,11 +135,6 @@
           (.interrupt (Thread/currentThread))
           (fail! :provider-request "Porkbun request failed" true cause))))))
 
-(defn- mutation-path? [path]
-  (or (str/starts-with? path "/dns/create/")
-      (str/starts-with? path "/dns/edit/")
-      (str/starts-with? path "/dns/delete/")))
-
 (defn- zone-unknown [cause]
   (if (::failure (ex-data cause))
     (ex-info (ex-message cause)
@@ -147,120 +142,131 @@
              cause)
     cause))
 
+(defn- response-decision
+  [response retry-allowed?]
+  (let [status     (long (or (:status response) 0))
+        error-body (when-not (<= 200 status 299)
+                     (maybe-parsed-body response))
+        error-code (:code error-body)
+        replay?    (and (= status 409)
+                        (= "IDEMPOTENCY_KEY_IN_USE" error-code))
+        retryable? (or (= status 429)
+                       (>= status 500)
+                       replay?)]
+    (cond
+      (and retry-allowed? retryable?)
+      {:action   :retry
+       :response response
+       :body     error-body}
+
+      (not (<= 200 status 299))
+      (fail! :provider-request
+             (str "Porkbun request failed with HTTP " status)
+             retryable?
+             nil
+             {::code error-code})
+
+      :else
+      (let [body (parsed-body response)]
+        (case (:status body)
+          "SUCCESS"
+          {:action :return :body body}
+
+          "ERROR"
+          (let [rate-limited? (= "RATE_LIMIT_EXCEEDED" (:code body))]
+            (if (and retry-allowed? rate-limited?)
+              {:action   :retry
+               :response response
+               :body     body}
+              (fail! :provider-request
+                     "Porkbun returned an unsuccessful response"
+                     rate-limited?
+                     nil
+                     {::code (:code body)})))
+
+          (invalid-response!))))))
+
+(defn- request-attempt!
+  [operation-deadline request retry-allowed? write?]
+  ;; Once transport is invoked, an actual Mutation may have changed the Zone,
+  ;; so failures during dispatch, classification, or waiting make it unknown.
+  (try
+    (let [response (try
+                     (http/request request)
+                     (catch InterruptedException cause
+                       (.interrupt (Thread/currentThread))
+                       (fail! :provider-request
+                              "Porkbun request failed"
+                              true
+                              cause))
+                     (catch IOException cause
+                       (if retry-allowed?
+                         ::retry
+                         (fail! :provider-request
+                                "Porkbun request failed"
+                                true
+                                cause)))
+                     (catch Exception cause
+                       (fail! :provider-request
+                              "Porkbun request failed"
+                              false
+                              cause)))
+          decision (if (= ::retry response)
+                     {:action :retry}
+                     (do
+                       (ensure-time! operation-deadline)
+                       (response-decision response retry-allowed?)))]
+      ;; An attempt finishes in one of two states: wait and retry the stable
+      ;; logical request, or return a validated Porkbun SUCCESS body.
+      (if (= :retry (:action decision))
+        (do
+          (wait-for-retry! operation-deadline
+                           (:response decision)
+                           (:body decision))
+          ::retry)
+        (:body decision)))
+    (catch clojure.lang.ExceptionInfo cause
+      (throw (if write?
+               (zone-unknown cause)
+               cause)))))
+
 (defn- request!
   ([provider operation-deadline path body]
-   (request! provider operation-deadline path body false))
-  ([provider operation-deadline path body write?]
-   (let [mutation? (mutation-path? path)
-         headers   (cond-> {"Content-Type" "application/json"}
-                     mutation? (assoc "Idempotency-Key" (str (random-uuid))))
-         request   (cond-> {:uri     (str base-url path)
-                            :method  :post
-                            :headers headers
-                            :body    (json/write-str
-                                      (merge (credentials provider) body))
-                            :throw   false}
-                     (:http-client provider) (assoc :client
-                                                    (:http-client provider)))]
-     (loop [attempt           1
-            write-dispatched? false]
+   (request! provider operation-deadline path body :read))
+  ([provider operation-deadline path body request-kind]
+   (let [[retry-enabled? write?] (case request-kind
+                                   :read [false false]
+                                   :validation [true false]
+                                   :mutation [true true])
+         headers                 (cond-> {"Content-Type" "application/json"}
+                                   retry-enabled? (assoc "Idempotency-Key"
+                                                         (str (random-uuid))))
+         request                 (cond-> {:uri     (str base-url path)
+                                          :method  :post
+                                          :headers headers
+                                          :body    (json/write-str
+                                                    (merge (credentials provider) body))
+                                          :throw   false}
+                                   (:http-client provider) (assoc :client
+                                                                  (:http-client provider)))]
+     (loop [attempt 1]
        (let [timeout (timeout-millis operation-deadline)]
          (when-not (pos? timeout)
-           (try
-             (fail! :deadline-exceeded
-                    "Deadline exceeded during Porkbun request"
-                    false)
-             (catch clojure.lang.ExceptionInfo cause
-               (throw (if write-dispatched?
-                        (zone-unknown cause)
-                        cause)))))
-         (let [result   (try
-                          (try
-                            {:response (http/request
-                                        (assoc request :timeout timeout))}
-                            (catch InterruptedException cause
-                              (.interrupt (Thread/currentThread))
-                              (fail! :provider-request
-                                     "Porkbun request failed"
-                                     true
-                                     cause))
-                            (catch IOException cause
-                              {:transport-failure cause})
-                            (catch Exception cause
-                              (fail! :provider-request
-                                     "Porkbun request failed"
-                                     false
-                                     cause)))
-                          (catch clojure.lang.ExceptionInfo cause
-                            (throw (if write?
-                                     (zone-unknown cause)
-                                     cause))))
-               decision (try
-                          (if-let [cause (:transport-failure result)]
-                            (if (and mutation?
-                                     (< attempt max-mutation-attempts))
-                              {:retry [nil nil]}
-                              (fail! :provider-request
-                                     "Porkbun request failed"
-                                     true
-                                     cause))
-                            (let [response   (:response result)
-                                  status     (long (or (:status response) 0))
-                                  error-body (when-not (<= 200 status 299)
-                                               (maybe-parsed-body response))
-                                  error-code (:code error-body)
-                                  replay?    (and (= status 409)
-                                                  (= "IDEMPOTENCY_KEY_IN_USE"
-                                                     error-code))
-                                  retryable? (or (= status 429)
-                                                 (>= status 500)
-                                                 replay?)]
-                              (ensure-time! operation-deadline)
-                              (cond
-                                (and mutation?
-                                     retryable?
-                                     (< attempt max-mutation-attempts))
-                                {:retry [response error-body]}
-
-                                (not (<= 200 status 299))
-                                (fail! :provider-request
-                                       (str "Porkbun request failed with HTTP "
-                                            status)
-                                       retryable?
-                                       nil
-                                       {::code error-code})
-
-                                :else
-                                (let [response-body (parsed-body response)]
-                                  (case (:status response-body)
-                                    "SUCCESS" {:body response-body}
-                                    "ERROR" (if (and mutation?
-                                                     (< attempt
-                                                        max-mutation-attempts)
-                                                     (= "RATE_LIMIT_EXCEEDED"
-                                                        (:code response-body)))
-                                              {:retry [response response-body]}
-                                              (fail! :provider-request
-                                                     "Porkbun returned an unsuccessful response"
-                                                     (= "RATE_LIMIT_EXCEEDED"
-                                                        (:code response-body))
-                                                     nil
-                                                     {::code (:code response-body)}))
-                                    (invalid-response!))))))
-                          (catch clojure.lang.ExceptionInfo cause
-                            (throw (if write?
-                                     (zone-unknown cause)
-                                     cause))))]
-           (if-let [[response response-body] (:retry decision)]
-             (do
-               (try
-                 (wait-for-retry! operation-deadline response response-body)
-                 (catch clojure.lang.ExceptionInfo cause
-                   (throw (if write?
-                            (zone-unknown cause)
-                            cause))))
-               (recur (inc attempt) (or write-dispatched? write?)))
-             (:body decision))))))))
+           (fail! :deadline-exceeded
+                  "Deadline exceeded during Porkbun request"
+                  false
+                  nil
+                  (when (and write? (> attempt 1))
+                    {::zone-state :unknown})))
+         (let [retry-allowed? (and retry-enabled?
+                                   (< attempt max-mutation-attempts))
+               result         (request-attempt! operation-deadline
+                                                (assoc request :timeout timeout)
+                                                retry-allowed?
+                                                write?)]
+           (if (= ::retry result)
+             (recur (inc attempt))
+             result)))))))
 
 (defn- normalized-zone [zone]
   (-> zone
@@ -486,7 +492,7 @@
             operation-deadline
             (str "/dns/create/" (normalized-zone zone))
             payload
-            true))
+            :mutation))
 
 (defn- edit-record!
   [provider operation-deadline zone id payload]
@@ -496,7 +502,7 @@
             operation-deadline
             (str "/dns/edit/" (normalized-zone zone) "/" id)
             payload
-            true))
+            :mutation))
 
 (defn- delete-record!
   [provider operation-deadline zone id]
@@ -506,7 +512,7 @@
             operation-deadline
             (str "/dns/delete/" (normalized-zone zone) "/" id)
             {}
-            true)
+            :mutation)
   nil)
 
 (defn- record-identity [record]
@@ -544,7 +550,8 @@
   (let [response (request! provider
                            operation-deadline
                            (str "/dns/create/" (normalized-zone zone))
-                           (assoc payload :dryRun true))]
+                           (assoc payload :dryRun true)
+                           :validation)]
     (when-not (true? (:wouldSucceed response))
       (invalid-response!))))
 
