@@ -22,16 +22,29 @@
         pkgs:
         clj-helpers.lib.mkCljLib {
           inherit pkgs;
-          name = "TODO";
-          version = "0.0.TODO";
+          name = "protocol53";
+          version = "0.0.0";
           src = ./.;
           prepAliases = [
             "dev"
             "kaocha"
           ];
-          prefetchAliases = [ "dev:kaocha" ];
-          checkCommand = "clojure -Srepro -M:dev:kaocha";
+          prefetchAliases = [ "dev:test:kaocha" ];
+          checkCommand = ''
+            # simplification: Maven needs a writable cache for ClojureScript's
+            # Clojure version range; remove when the locker supplies one.
+            lockedHome="$HOME"
+            writableHome="$TMPDIR/clojure-home"
+            mkdir -p "$writableHome"
+            cp -RL "$lockedHome/.m2" "$writableHome/"
+            chmod -R u+w "$writableHome/.m2"
+            ln -s "$lockedHome/.clojure" "$writableHome/.clojure"
+            export HOME="$writableHome"
+            export JAVA_TOOL_OPTIONS="-Duser.home=$HOME -Djava.io.tmpdir=$TMPDIR"
+            clojure -Srepro -M:dev:test:kaocha
+          '';
           gitRev = clj-helpers.lib.gitRev self;
+          nativeBuildInputs = [ pkgs.babashka ];
         };
     in
     devenv.lib.mkFlake ./. {

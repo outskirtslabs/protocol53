@@ -64,7 +64,7 @@
                 :lib       lib
                 :version   version
                 :basis     @basis_
-                :src-dirs  (existing-paths ["src/main"])
+                :src-dirs  (existing-paths ["api/src/main"])
                 :pom-data  [[:description description]
                             [:url repo-url-prefix]
                             [:licenses
@@ -73,7 +73,7 @@
                               [:url (permalink license-file)]]]
                             (conj (url->scm repo-url-prefix) [:tag rev])]})
 
-  (b/copy-dir {:src-dirs   (existing-paths ["src/main" "resources"])
+  (b/copy-dir {:src-dirs   (existing-paths ["api/src/main" "resources"])
                :target-dir class-dir})
   (b/jar {:class-dir class-dir
           :jar-file  jar-file}))

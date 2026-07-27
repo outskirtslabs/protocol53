@@ -1,10 +1,10 @@
 {
   "git": {
-    "my/dev-repl/3a298ad1d16875ff841079b1bfab087d3ef817ba": {
-      "common_dir": "https/github.com/Ramblurr/clojure-dev-repl",
-      "rev": "3a298ad1d16875ff841079b1bfab087d3ef817ba",
-      "sha256": "00isarmpyyb7ws68jw0y1qbqg4l0mf9z4fwmvhry9095cjm40kmn",
-      "url": "https://github.com/Ramblurr/clojure-dev-repl.git"
+    "outskirtslabs/bb-tasks/9dbc6d77384b51ffde69007e98a0420b3cf6a0a7": {
+      "common_dir": "https/github.com/outskirtslabs/bb-tasks",
+      "rev": "9dbc6d77384b51ffde69007e98a0420b3cf6a0a7",
+      "sha256": "0b2iqd8l7x25h75agxb9f37kyv2lywpp4ffh7jccjgpxgz8yyxx3",
+      "url": "https://github.com/outskirtslabs/bb-tasks"
     }
   },
   "maven": {
@@ -13,6 +13,18 @@
     },
     "aero/aero/1.1.6/aero-1.1.6.pom": {
       "sha256": "5945cf8ead780f7497e86f298963f278681d519ae9b21be949fac5420f05d350"
+    },
+    "borkdude/dynaload/0.3.5/dynaload-0.3.5.jar": {
+      "sha256": "0887c0cdb9afcecd7c496ea258a32e43aa72e766f3f0632e1bd0f5245ca8c24c"
+    },
+    "borkdude/dynaload/0.3.5/dynaload-0.3.5.pom": {
+      "sha256": "5c1c228f1a29b06d0a7d03490f5e64faf713a3c6167298ba171cffc33cf9ed18"
+    },
+    "borkdude/edamame/1.5.37/edamame-1.5.37.jar": {
+      "sha256": "4ee6060d5252d0b94a70839dbd0cbaf7d7cc4e81d9c277d2b3552f280b97c5a8"
+    },
+    "borkdude/edamame/1.5.37/edamame-1.5.37.pom": {
+      "sha256": "00b6c6a5941f676088456e5551ecf938b06127e9520cf63ba316f55303e1c86e"
     },
     "ch/qos/logback/logback-classic/1.0.12/logback-classic-1.0.12.jar": {
       "sha256": "bb5437dc692a5c5af75b2fed36a4431e834b234399372c6c1f2dad9d9b072551"
@@ -83,11 +95,11 @@
     "com/amazonaws/jmespath-java/1.12.49/jmespath-java-1.12.49.pom": {
       "sha256": "2b7abc740a413396f32caea740f2187af8c7aa728337e13b4c72327f46e10f7a"
     },
-    "com/clojure-goes-fast/clj-async-profiler/1.7.0/clj-async-profiler-1.7.0.jar": {
-      "sha256": "48b3a0bc68ed4cff171098fb11ff744770e9fbb3a3d15e07998c08b2721e1467"
+    "com/cnuernber/charred/1.041/charred-1.041.jar": {
+      "sha256": "dddc94059162aa850a702b080d67cd3c73da70a9290a4390a6946f37d31ac68e"
     },
-    "com/clojure-goes-fast/clj-async-profiler/1.7.0/clj-async-profiler-1.7.0.pom": {
-      "sha256": "16364d91e2d1dc5ec9bae091f4b4a823c06871980adb44cded32925dee6378bf"
+    "com/cnuernber/charred/1.041/charred-1.041.pom": {
+      "sha256": "d34bc4e52a621080f2690f71d85c96b69d75561a29584dbfc4a2292e551cade7"
     },
     "com/cognitect/aws/api/0.8.824/api-0.8.824.jar": {
       "sha256": "4419ad593f5dd1852100aa4fb34afe1ff54b1f24251886666ba30db5cc4169ec"
@@ -107,29 +119,11 @@
     "com/cognitect/aws/s3/871.2.43.0/s3-871.2.43.0.pom": {
       "sha256": "00f0718dbb06d92bd47cbf9af08a829ace95a3446c47cefc3b73dc315167cb5a"
     },
-    "com/cognitect/transit-clj/1.1.357/transit-clj-1.1.357.jar": {
-      "sha256": "a9fc682e189acf3f3f1a1d739d25291d233345d31c2326f89cf3a752f8dcc55a"
+    "com/cognitect/transit-java/1.0.362/transit-java-1.0.362.jar": {
+      "sha256": "eb68573d46dda85601cc63d9b1c287feb5e89e76e92502e826efd0a323f7cb54"
     },
-    "com/cognitect/transit-clj/1.1.357/transit-clj-1.1.357.pom": {
-      "sha256": "1cb0209dff77846e5b45c523b7308b435cfc7db1e0c457f6df8fac30c50289ec"
-    },
-    "com/cognitect/transit-cljs/0.8.280/transit-cljs-0.8.280.jar": {
-      "sha256": "157ad4c30e416214c29997baf26ded277d05c4b43219677d2b1003c801681c1a"
-    },
-    "com/cognitect/transit-cljs/0.8.280/transit-cljs-0.8.280.pom": {
-      "sha256": "da2dc42451a742b77700506ac9f42117a8c31f44688788c0e120cec7c9545da9"
-    },
-    "com/cognitect/transit-java/1.1.403/transit-java-1.1.403.jar": {
-      "sha256": "07744f8931188516837c36ff8bec87a14de0f3c6d67a80b2c82ff620ebed218f"
-    },
-    "com/cognitect/transit-java/1.1.403/transit-java-1.1.403.pom": {
-      "sha256": "6016ecea6b11b2360c6d294ef55013d2268c3c39ae01c99128549411751afdff"
-    },
-    "com/cognitect/transit-js/0.8.874/transit-js-0.8.874.jar": {
-      "sha256": "ad6e4bd2d695565da79eb58020c9665d22850d6b39cb86f8330bb6da3bbf0909"
-    },
-    "com/cognitect/transit-js/0.8.874/transit-js-0.8.874.pom": {
-      "sha256": "27bc96e2af9c9fae9b585d100074532e9f45459f51dd0609039d138c7aad51b8"
+    "com/cognitect/transit-java/1.0.362/transit-java-1.0.362.pom": {
+      "sha256": "d1d63c8014b8b6642dd0aac7063366bffcb8eddd58e2762fda8c82b45b6fe7c1"
     },
     "com/fasterxml/jackson/core/jackson-annotations/2.12.4/jackson-annotations-2.12.4.jar": {
       "sha256": "f6aa3706a875689b66cdac3334f65dfdb795ccfad4117bf072893b196ed1ec8e"
@@ -143,11 +137,11 @@
     "com/fasterxml/jackson/core/jackson-core/2.12.4/jackson-core-2.12.4.pom": {
       "sha256": "0750051ae144c11f72309741e78d0134d13b294f4ce4f7900a3a203564324311"
     },
-    "com/fasterxml/jackson/core/jackson-core/2.21.1/jackson-core-2.21.1.jar": {
-      "sha256": "1edd5f2e49dca5f8e4519957c24b7b3050bd1c7ee883920da33cff031ff1f7c0"
+    "com/fasterxml/jackson/core/jackson-core/2.8.7/jackson-core-2.8.7.jar": {
+      "sha256": "256ff34118ab292d1b4f3ee4d2c3e5e5f0f609d8e07c57e8ad1f51c46d4fbb46"
     },
-    "com/fasterxml/jackson/core/jackson-core/2.21.1/jackson-core-2.21.1.pom": {
-      "sha256": "0f3fb5eb9e8970449ac0cb98e2f8e7b513d2d4ec5b1a4f02e22778e4f7bab8d7"
+    "com/fasterxml/jackson/core/jackson-core/2.8.7/jackson-core-2.8.7.pom": {
+      "sha256": "0d8f415d56320fbe3883ab7adee73bbb2c9a69c2a49af3608fd6b1efa15d8b5a"
     },
     "com/fasterxml/jackson/core/jackson-databind/2.12.4/jackson-databind-2.12.4.jar": {
       "sha256": "e99a7b4b89074bc689aabcd9eb1f2c1318b68cc5c34979daf3e34edc558c7a01"
@@ -170,41 +164,32 @@
     "com/fasterxml/jackson/jackson-base/2.12.4/jackson-base-2.12.4.pom": {
       "sha256": "1921aee85bebabf016ea50583ab9b411d510b77558f56823dcb4ba57c5b97ff9"
     },
-    "com/fasterxml/jackson/jackson-base/2.21.1/jackson-base-2.21.1.pom": {
-      "sha256": "60d4eb66a000a33fa37e7cb51e2550dabe7467a0b8ac60806d7d3ba9728ccd64"
-    },
     "com/fasterxml/jackson/jackson-bom/2.12.3/jackson-bom-2.12.3.pom": {
       "sha256": "505131050d8b5d4a814f27f32bc439187b1ab863d6587d496eba4cba8cc0e02a"
     },
     "com/fasterxml/jackson/jackson-bom/2.12.4/jackson-bom-2.12.4.pom": {
       "sha256": "eb3e73beeeb8aca955643c38b994dda6fb0cebc319676f80ead5fb9ecaff6e3d"
     },
-    "com/fasterxml/jackson/jackson-bom/2.21.1/jackson-bom-2.21.1.pom": {
-      "sha256": "8d7c78dde10f4d08e7296cef084cf30b77adcea7a36e23d1520793fdec63ff28"
-    },
     "com/fasterxml/jackson/jackson-parent/2.12/jackson-parent-2.12.pom": {
       "sha256": "62aa1c1679ade09f173dbf1b6c32d35c55e75800238fd5e48f13aa4337c0875b"
     },
-    "com/fasterxml/jackson/jackson-parent/2.21/jackson-parent-2.21.pom": {
-      "sha256": "3851df627faeb46887b956104630b74a8bbb5f7de22e974cf15982e20e0373de"
+    "com/fasterxml/jackson/jackson-parent/2.8/jackson-parent-2.8.pom": {
+      "sha256": "3b51994c1a3a29c2c89728226c0be14b69888a1bb0ef311f8d65904cdfbd9358"
+    },
+    "com/fasterxml/oss-parent/27/oss-parent-27.pom": {
+      "sha256": "b9b8f388fd628057b1249756468b86726c8fd5816ce14d313cb40003a509beeb"
     },
     "com/fasterxml/oss-parent/41/oss-parent-41.pom": {
       "sha256": "af650fa4dd400bc5769320bcef08ed93813f349cabe8213d469acafbbd945d8a"
     },
-    "com/fasterxml/oss-parent/75/oss-parent-75.pom": {
-      "sha256": "fcbbf1c18c9047e6917d384f2064e21b42a58fc85fb0523a9e2e015eff7c619d"
+    "com/fulcrologic/guardrails/1.3.1/guardrails-1.3.1.jar": {
+      "sha256": "0d552952f4255120d1f6be6658ba2ca11c3a09707f5aca8bafb706a51e52ce94"
     },
-    "com/google/code/gson/gson-parent/2.10.1/gson-parent-2.10.1.pom": {
-      "sha256": "4248e0882426c615182385d6086c3ef3262e769957189e29306280b85482b833"
+    "com/fulcrologic/guardrails/1.3.1/guardrails-1.3.1.pom": {
+      "sha256": "0ac676105223a6baa4888399bc404c71511d0e1afb198ac7e016b7299767cfe8"
     },
     "com/google/code/gson/gson-parent/2.13.2/gson-parent-2.13.2.pom": {
       "sha256": "83ab528a9d50fd76aeb8ad6f727b3ee9cb766586255774ed16ca8c4c76d9dacd"
-    },
-    "com/google/code/gson/gson/2.10.1/gson-2.10.1.jar": {
-      "sha256": "4241c14a7727c34feea6507ec801318a3d4a90f070e4525681079fb94ee4c593"
-    },
-    "com/google/code/gson/gson/2.10.1/gson-2.10.1.pom": {
-      "sha256": "d2b115634f5c085db4b9c9ffc2658e89e231fdbfbe2242121a1cd95d4d948dd7"
     },
     "com/google/code/gson/gson/2.13.2/gson-2.13.2.jar": {
       "sha256": "dd0ce1b55a3ed2080cb70f9c655850cda86c206862310009dcb5e5c95265a5e0"
@@ -220,6 +205,24 @@
     },
     "com/google/errorprone/error_prone_parent/2.41.0/error_prone_parent-2.41.0.pom": {
       "sha256": "c538388d760a5c1c98dcf06f6ed3cfe5f11a651827db5cbd2ed8288c795cad42"
+    },
+    "com/google/javascript/closure-compiler-main/v20250820/closure-compiler-main-v20250820.pom": {
+      "sha256": "453a5f9a19dc4f5b624399458b16dbcf1227a95aea1165c7ae3b7393a25226b8"
+    },
+    "com/google/javascript/closure-compiler-parent/v20250820/closure-compiler-parent-v20250820.pom": {
+      "sha256": "4c62ee1302bf2c04260ddc4f77c9259dbf573f3111c3ae917d4413a309ab19b0"
+    },
+    "com/google/javascript/closure-compiler/v20250820/closure-compiler-v20250820.jar": {
+      "sha256": "171d24354ffe7dcd378fe4dfb30e4673859391f4da11a70ba04fdac0dd4d82d2"
+    },
+    "com/google/javascript/closure-compiler/v20250820/closure-compiler-v20250820.pom": {
+      "sha256": "09697b0021cba7564be930e3cf4fb1058d369c50ebe298a0f3f09c8b0b81abad"
+    },
+    "com/googlecode/json-simple/json-simple/1.1.1/json-simple-1.1.1.jar": {
+      "sha256": "4e69696892b88b41c55d49ab2fdcc21eead92bf54acc588c0050596c3b75199c"
+    },
+    "com/googlecode/json-simple/json-simple/1.1.1/json-simple-1.1.1.pom": {
+      "sha256": "665f63590defb63d62add21d3525362cf937cf6a1c05e4b0145bae8da8a57f83"
     },
     "com/jcraft/jsch.agentproxy.connector-factory/0.0.9/jsch.agentproxy.connector-factory-0.0.9.jar": {
       "sha256": "30fffe206fc598b464b255ae0300b1088fb9b47501e0266831c0167d36639884"
@@ -278,9 +281,6 @@
     "com/nextjournal/beholder/1.0.2/beholder-1.0.2.pom": {
       "sha256": "2d12644867503df2e87868cbc14ddd7852a86ae9b6756fd0278ea508ad1de2ee"
     },
-    "com/sun/activation/all/1.2.0/all-1.2.0.pom": {
-      "sha256": "1d8518e3ac7532a104e4f7be77def37c982e530723c6bdb3d67708cce2b0c2c4"
-    },
     "commons-codec/commons-codec/1.21.0/commons-codec-1.21.0.jar": {
       "sha256": "4da851cb6abfb98bfe9eb77c5e5fc47f5414fa28b94e21b7fd9a646705dc167f"
     },
@@ -298,12 +298,6 @@
     },
     "dev/weavejester/hashp/0.5.1/hashp-0.5.1.pom": {
       "sha256": "76cb5f1b0f683a643ecf3f406713e938b7c516f5207c97b370a9d291cf617618"
-    },
-    "djblue/portal/0.65.0/portal-0.65.0.jar": {
-      "sha256": "92cdd3f72489642d5235b2d8d0e3af5db12d39298360b9c752a507701da97f08"
-    },
-    "djblue/portal/0.65.0/portal-0.65.0.pom": {
-      "sha256": "067a6fc860238bd09bae1e34f38d1b9e05c1a4706f1e53f22c8140fde56c4781"
     },
     "eu/maveniverse/maven/mima/context/2.4.44/context-2.4.44.jar": {
       "sha256": "81f0dab4c5f0cf59a53faf8b864960b1629d7d7f174f0c26ed6319e2fec1984d"
@@ -353,11 +347,17 @@
     "expound/expound/0.9.0/expound-0.9.0.pom": {
       "sha256": "90948e0c3dccbc4f1a0af680056b9ed898b301cbed2dde3ff42479796997c5d9"
     },
-    "fipp/fipp/0.6.26/fipp-0.6.26.jar": {
-      "sha256": "f7cb696cce55afd74c838d5441419c7e5f6d491af185a8e563dfa79796857283"
+    "fipp/fipp/0.6.29/fipp-0.6.29.jar": {
+      "sha256": "db6789a035c013ce11a991eb3818882d68d47fa6a9eee4627b2e0d9e1bef05f2"
     },
-    "fipp/fipp/0.6.26/fipp-0.6.26.pom": {
-      "sha256": "a7ec6357b81321132fd07c2f57efeb02114415594363d83a14313a194f5f5535"
+    "fipp/fipp/0.6.29/fipp-0.6.29.pom": {
+      "sha256": "3aa5f4ad18fbeda949e1f6bc84ddd11e09dceab47f254c0908963aa382f009c5"
+    },
+    "fulcrologic/fulcro-spec/3.2.10/fulcro-spec-3.2.10.jar": {
+      "sha256": "c45ed02482904ad17471c2aeceb3f8cbb36fff477ed24a47f8e7300342740721"
+    },
+    "fulcrologic/fulcro-spec/3.2.10/fulcro-spec-3.2.10.pom": {
+      "sha256": "799f59cd11310296190394d58e720dce80f21de99f404acf43da0f6b573325ce"
     },
     "hawk/hawk/0.2.11/hawk-0.2.11.jar": {
       "sha256": "e943f2f0c487c6c5a6b20e70ce91dd5f31e40489570917bba13fcea73c9a7a43"
@@ -365,11 +365,11 @@
     "hawk/hawk/0.2.11/hawk-0.2.11.pom": {
       "sha256": "ab83f3a161d4639dd6d936568a13e9c3ea970784165959d2d625b75a5bc8c458"
     },
-    "http-kit/http-kit/2.7.0/http-kit-2.7.0.jar": {
-      "sha256": "b4bed5f82be653a79d365ccd188c5d25d1750c49f40d5a65919973435ba21774"
+    "io/aviso/pretty/1.4.4/pretty-1.4.4.jar": {
+      "sha256": "acf84fb56fa33602737bf3cdbd054cc4177baa186a3ea2936606d8065c22bf92"
     },
-    "http-kit/http-kit/2.7.0/http-kit-2.7.0.pom": {
-      "sha256": "ca0c586615be5e77dab77eecad68624d4a9255ca16bed8e8c056c9ce07f6cf50"
+    "io/aviso/pretty/1.4.4/pretty-1.4.4.pom": {
+      "sha256": "bba48e6743e6e643f8d6fa55a7f2a78a620c884db5073d9e88c14e44bd735c8b"
     },
     "io/github/clojure/tools.build/0.10.14/tools.build-0.10.14.jar": {
       "sha256": "e95329eee72a2f2ff22c1ac41ac699709ecf860b8aa0709fadb2331751a9d74c"
@@ -377,23 +377,11 @@
     "io/github/clojure/tools.build/0.10.14/tools.build-0.10.14.pom": {
       "sha256": "e0188f0ad99902c9f77b043776ec42035e4133295890dbfe960bc244e4ed5f18"
     },
-    "io/github/tonsky/clj-reload/1.0.0/clj-reload-1.0.0.jar": {
-      "sha256": "71950c3919876196737a1a045787a41bbd792313fe5919d9d12b64fd88449a31"
-    },
-    "io/github/tonsky/clj-reload/1.0.0/clj-reload-1.0.0.pom": {
-      "sha256": "e8fc667e1266daa7b935ee7ac0062226d812975169381aade28aba0ee2d495b3"
-    },
     "io/methvin/directory-watcher/0.17.3/directory-watcher-0.17.3.jar": {
       "sha256": "0523dd38a393a63b75e4320ff523034a0ac3cea697f6151a7ac8a893c322531e"
     },
     "io/methvin/directory-watcher/0.17.3/directory-watcher-0.17.3.pom": {
       "sha256": "63f0b8cd1d4da349b60df93891d1e00c5d3fd2c9bd33d8e5beed075a28cd8854"
-    },
-    "javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.jar": {
-      "sha256": "43fdef0b5b6ceb31b0424b208b930c74ab58fac2ceeb7b3f6fd3aeb8b5ca4393"
-    },
-    "javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.pom": {
-      "sha256": "da2926f3c8be898643cc10acdec6de0b0351a57fb2735770fa0177b06ade71b9"
     },
     "javax/inject/javax.inject/1/javax.inject-1.jar": {
       "sha256": "91c77044a50c481636c32d916fd89c9118a72195390452c81065080f957de7ff"
@@ -401,14 +389,14 @@
     "javax/inject/javax.inject/1/javax.inject-1.pom": {
       "sha256": "943e12b100627804638fa285805a0ab788a680266531e650921ebfe4621a8bfa"
     },
-    "javax/xml/bind/jaxb-api-parent/2.4.0-b180830.0359/jaxb-api-parent-2.4.0-b180830.0359.pom": {
-      "sha256": "72d132e2c858d2230f15d048f1e93a279c40c4e9ec84bc56f9f2f3eb5af4b4b8"
+    "javax/xml/bind/jaxb-api-parent/2.3.0/jaxb-api-parent-2.3.0.pom": {
+      "sha256": "76b7aac6413269d0bddb47b8b8e37bb3145789c9a9a42df80927aeb5aeeffb72"
     },
-    "javax/xml/bind/jaxb-api/2.4.0-b180830.0359/jaxb-api-2.4.0-b180830.0359.jar": {
-      "sha256": "56b9e9702753763007435162ea788055efcfefc86ab920f032c0411dc547b836"
+    "javax/xml/bind/jaxb-api/2.3.0/jaxb-api-2.3.0.jar": {
+      "sha256": "883007989d373d19f352ba9792b25dec21dc7d0e205a710a93a3815101bb3d03"
     },
-    "javax/xml/bind/jaxb-api/2.4.0-b180830.0359/jaxb-api-2.4.0-b180830.0359.pom": {
-      "sha256": "b1c93fc301d7f5fe4cde13d1953299251da37efffc91f523835504c3ff873707"
+    "javax/xml/bind/jaxb-api/2.3.0/jaxb-api-2.3.0.pom": {
+      "sha256": "466f6e7b9901e952ae1ad24f0e9494a5680961f04e42239b5ae64e8dcaf6297a"
     },
     "joda-time/joda-time/2.8.1/joda-time-2.8.1.jar": {
       "sha256": "b4670b95f75957c974284c5f3ada966040be2578f643c5c6083d262162061fa2"
@@ -421,12 +409,6 @@
     },
     "junit/junit/3.8.1/junit-3.8.1.pom": {
       "sha256": "e68f33343d832398f3c8aa78afcd808d56b7c1020de4d3ad8ce47909095ee904"
-    },
-    "lambdaisland/ansi/0.2.37/ansi-0.2.37.jar": {
-      "sha256": "06d28b80de2ccb12a5ea87b0760f749dfb985acf73b99da42bc6b37b7fe15f78"
-    },
-    "lambdaisland/ansi/0.2.37/ansi-0.2.37.pom": {
-      "sha256": "a5a73f082f2d6812d8d462af8903f3d4977160bc92155e5cb82c460802a0b848"
     },
     "lambdaisland/clj-diff/1.4.78/clj-diff-1.4.78.jar": {
       "sha256": "a28bc6e4b29523cc29a472e57e6eab9580fa0d0368ad7be58b2a47e891a1459c"
@@ -457,6 +439,12 @@
     },
     "meta-merge/meta-merge/1.0.0/meta-merge-1.0.0.pom": {
       "sha256": "b00a20658fcecc2bd1341031f394f52d68c53fb480c4454134ccaac204ea5931"
+    },
+    "metosin/malli/0.20.1/malli-0.20.1.jar": {
+      "sha256": "45a68c238b6c5d197629750f1a63cc5aa6d045456b0a945c8c9d5ac8067d81de"
+    },
+    "metosin/malli/0.20.1/malli-0.20.1.pom": {
+      "sha256": "07e7c43ad54c32e25af0c663375d1c762c2e644ff82db6fd9c29fa2d821a6bc8"
     },
     "mvxcvi/arrangement/2.1.0/arrangement-2.1.0.jar": {
       "sha256": "f37251385d220df8951e68d5255abb5197adbcbd8fc6b3d3fca872a2339f39c8"
@@ -493,9 +481,6 @@
     },
     "net/java/dev/jna/jna/5.12.1/jna-5.12.1.pom": {
       "sha256": "65ff25849bad859554b50317792f5689adb4529ae4031e9a5246319cb2b85356"
-    },
-    "net/java/jvnet-parent/1/jvnet-parent-1.pom": {
-      "sha256": "281440811268e65d9e266b3cc898297e214e04f09740d0386ceeb4a8923d63bf"
     },
     "net/java/jvnet-parent/5/jvnet-parent-5.pom": {
       "sha256": "1af699f8d9ddab67f9a0d202fbd7915eb0362a5a6dfd5ffc54cafa3465c9cb0a"
@@ -740,11 +725,29 @@
     "org/apache/maven/wagon/wagon/3.5.3/wagon-3.5.3.pom": {
       "sha256": "7c10b8bac59268fe7957f2ab2b50965d90069ebf850c756bb55ea807ce440f0b"
     },
+    "org/babashka/json/0.1.6/json-0.1.6.jar": {
+      "sha256": "b782c5c6c8c04aadfbc9dcebb033ef5f60c7e090eeed64c3b25873b279eebe21"
+    },
+    "org/babashka/json/0.1.6/json-0.1.6.pom": {
+      "sha256": "b645a2e5c9138f3da84381f061c2c36f2726467972e172e525fea365d5f75575"
+    },
+    "org/clojure/clojure/1.12.4/clojure-1.12.4.jar": {
+      "sha256": "4b81e9ba6da38c45d9cc58023c674062b8c9f0714f33ff00ded22e6a949da177"
+    },
+    "org/clojure/clojure/1.12.4/clojure-1.12.4.pom": {
+      "sha256": "c51879062e41ff9f21afa0e409b199ffe9f2a3c6ae722cdfec5fd9dba05e4172"
+    },
     "org/clojure/clojure/1.12.5/clojure-1.12.5.jar": {
       "sha256": "dfdee131460216a84fef22e537bb0d0579965f8f70338d748323dff26f8e5a8b"
     },
     "org/clojure/clojure/1.12.5/clojure-1.12.5.pom": {
       "sha256": "278c51d977c1968493d8d4cb0c5c60e2cb2550d60485c3813cf161e56af68858"
+    },
+    "org/clojure/clojurescript/1.12.145/clojurescript-1.12.145.jar": {
+      "sha256": "cc8795a3f7a0238d4a7b69413b969cb12ed8ccb7a9991e9e06d107743f8d55e7"
+    },
+    "org/clojure/clojurescript/1.12.145/clojurescript-1.12.145.pom": {
+      "sha256": "f9ecb2c1ed8106df805dd33e4d91450bfe1633dc9dfcb5b17e03cd4878f91369"
     },
     "org/clojure/core.async/1.8.741/core.async-1.8.741.jar": {
       "sha256": "288489a4f0e580f43e1913cba842b32959ef01e2d1bc3a01db2e97c79c9c655a"
@@ -776,11 +779,11 @@
     "org/clojure/core.specs.alpha/0.4.74/core.specs.alpha-0.4.74.pom": {
       "sha256": "33410eb8aa73d52d957b3dc6e0a65f3998ac0623cbd813d90c33e6e689c42429"
     },
-    "org/clojure/data.json/2.4.0/data.json-2.4.0.jar": {
-      "sha256": "ec3f2f994e1eedd420313c452ba5518c5f5c97be5152dfed5650bc6611486adf"
+    "org/clojure/data.json/2.5.0/data.json-2.5.0.jar": {
+      "sha256": "6779c36ee1f90d70f35feb872fb31756aa0e1b8bd6c65e105e780babb4b25704"
     },
-    "org/clojure/data.json/2.4.0/data.json-2.4.0.pom": {
-      "sha256": "a42ea70f17b517666ad8492a1bfa917de5defac7b47c516f6d0d4d89c2780cf4"
+    "org/clojure/data.json/2.5.0/data.json-2.5.0.pom": {
+      "sha256": "04f0b2d6929d17c22f986b2500ba805585580de13b8069247b825460a87041fe"
     },
     "org/clojure/data.json/2.5.2/data.json-2.5.2.jar": {
       "sha256": "0938c730961d32b331ea7e5cd7c6a822c0a889def79d1c3f2af4dd201fdddeb3"
@@ -799,6 +802,18 @@
     },
     "org/clojure/data.xml/0.2.0-alpha11/data.xml-0.2.0-alpha11.pom": {
       "sha256": "cf4b001326c00be99f3f4679d1be2cac4b626647edb8e39c14588606c1550f68"
+    },
+    "org/clojure/google-closure-library-third-party/0.0-20250515-f04e4c0e/google-closure-library-third-party-0.0-20250515-f04e4c0e.jar": {
+      "sha256": "499a8b5ee6ffc63632bde745a98023967a7a66ccb6ad76411121fb2745d8d3a3"
+    },
+    "org/clojure/google-closure-library-third-party/0.0-20250515-f04e4c0e/google-closure-library-third-party-0.0-20250515-f04e4c0e.pom": {
+      "sha256": "4d7d4e640cf7ca8933260c1500384d1e2fc214ab5136f2c6895e593544baaad6"
+    },
+    "org/clojure/google-closure-library/0.0-20250515-f04e4c0e/google-closure-library-0.0-20250515-f04e4c0e.jar": {
+      "sha256": "451cc32a6897448c925a9c72338a7a573a874bd3da0b385eda87e81c060d7e1a"
+    },
+    "org/clojure/google-closure-library/0.0-20250515-f04e4c0e/google-closure-library-0.0-20250515-f04e4c0e.pom": {
+      "sha256": "77f86a1a3567023d783c1502b428bfebe4049873ddf3c482a301989cfa293ef7"
     },
     "org/clojure/java.classpath/1.0.0/java.classpath-1.0.0.jar": {
       "sha256": "c14e0e10304a5e5cfd2cc742fbdefac1f5293eec6070c2ffe8903fb5c7fe7d6f"
@@ -829,6 +844,12 @@
     },
     "org/clojure/spec.alpha/0.5.238/spec.alpha-0.5.238.pom": {
       "sha256": "3cba7e0dcc085c4ce92dddffea226124ffac178be79bd0379b5b2e30a969cbea"
+    },
+    "org/clojure/test.check/1.1.3/test.check-1.1.3.jar": {
+      "sha256": "8b0637b13982734742fb3f4d129f0a9d9e3d752b1aec0c6f65ced4555f72b649"
+    },
+    "org/clojure/test.check/1.1.3/test.check-1.1.3.pom": {
+      "sha256": "a4f21feb2386fbfcd42a52200d14c0f78bbef6899f748ccefcb0a4499e0fdec5"
     },
     "org/clojure/tools.analyzer.jvm/1.3.2/tools.analyzer.jvm-1.3.2.jar": {
       "sha256": "d8a2d59205a21281f305f3d5439ffc302182c307f9be962a76ce814a6620693d"
@@ -896,9 +917,6 @@
     "org/clojure/tools.namespace/1.5.1/tools.namespace-1.5.1.pom": {
       "sha256": "ac4d5d17976dabcadc68d8383d087c5ec2808ce2a5bbac5138a207352e2430f2"
     },
-    "org/clojure/tools.reader/1.3.6/tools.reader-1.3.6.jar": {
-      "sha256": "11d1b31f2c65c3355b292bb9b44b8fcafda54b44da63e34ab97b79a8ab3bb8e0"
-    },
     "org/clojure/tools.reader/1.3.6/tools.reader-1.3.6.pom": {
       "sha256": "aef5ee828b7cb14a1c58f45b9f8a10ff340c5769925ea0ef5c35d1e49d920bea"
     },
@@ -907,6 +925,12 @@
     },
     "org/clojure/tools.reader/1.5.0/tools.reader-1.5.0.pom": {
       "sha256": "61ab2a12385204e6c58b87d3d8ea478e94986a200ab3afb25ae279eaadc3a99a"
+    },
+    "org/clojure/tools.reader/1.5.2/tools.reader-1.5.2.jar": {
+      "sha256": "cb96ed0efdf0b8bc362632cb74067ef225f6b03f3f478c8ba44182f6a17a37b6"
+    },
+    "org/clojure/tools.reader/1.5.2/tools.reader-1.5.2.pom": {
+      "sha256": "b9996f5c9b57e234863f395fce64f97d3050b4f58530a6215a5969b082d214e7"
     },
     "org/clojure/tools.reader/1.6.0/tools.reader-1.6.0.jar": {
       "sha256": "036dc155f3b62548df3da934791aa9d8ec36572a9c664ce2cc7f6551856436be"
@@ -989,6 +1013,12 @@
     "org/codehaus/plexus/plexus/8/plexus-8.pom": {
       "sha256": "ffa349db04e7abf65885bdc5a2062f4197c0ff9d3f1f4e2aa5720b77233f742c"
     },
+    "org/javassist/javassist/3.18.1-GA/javassist-3.18.1-GA.jar": {
+      "sha256": "3fb71231afd098bb0f93f5eb97aa8291c8d0556379125e596f92ec8f944c6162"
+    },
+    "org/javassist/javassist/3.18.1-GA/javassist-3.18.1-GA.pom": {
+      "sha256": "5ab1956fe8c45f35d46a5e47f320744d9fc4f5857cda9311b37189c5d353da0f"
+    },
     "org/junit/junit-bom/5.10.2/junit-bom-5.10.2.pom": {
       "sha256": "169dd904a4b0f6520cffe658cc62292bfe9f3c14a989fa92120724cde43a9968"
     },
@@ -1007,11 +1037,11 @@
     "org/junit/junit-bom/5.14.4/junit-bom-5.14.4.pom": {
       "sha256": "5706e8f29a0a07f56efbbea4a0670793414194bb8d24d8143ba1e787a2f32856"
     },
-    "org/msgpack/msgpack-core/0.9.11/msgpack-core-0.9.11.jar": {
-      "sha256": "031b780833e8766fecb2af629bc04f2eb5d2c2b1e17475b9b6b8a81f932aea31"
+    "org/msgpack/msgpack/0.6.12/msgpack-0.6.12.jar": {
+      "sha256": "e09ca65d8520488e80a5dc426848a8afccfd40f4a2eb3b9646042595d3bd9b5e"
     },
-    "org/msgpack/msgpack-core/0.9.11/msgpack-core-0.9.11.pom": {
-      "sha256": "526f1f95da77f76f8f789293d46ad96f9e0dd788495e99e73bc3e177ff7a0c50"
+    "org/msgpack/msgpack/0.6.12/msgpack-0.6.12.pom": {
+      "sha256": "94497d8f02f8de8159a5b7d5136e010f57f5d9ac65886112eced8695c5056dee"
     },
     "org/ow2/asm/asm/9.9.1/asm-9.9.1.jar": {
       "sha256": "6f3828a215c920059a5efa2fb55c233d6c54ec5cadca99ce1b1bdd10077c7ddd"
@@ -1070,6 +1100,12 @@
     "org/sonatype/oss/oss-parent/6/oss-parent-6.pom": {
       "sha256": "b4306d13e8f5392458a1b30866f1cff161b3d2e6999a88d059eea3932c8a8499"
     },
+    "org/sonatype/oss/oss-parent/7/oss-parent-7.pom": {
+      "sha256": "b51f8867c92b6a722499557fc3a1fdea77bdf9ef574722fe90ce436a29559454"
+    },
+    "org/sonatype/oss/oss-parent/9/oss-parent-9.pom": {
+      "sha256": "fb40265f982548212ff82e362e59732b2187ec6f0d80182885c14ef1f982827a"
+    },
     "org/springframework/build/aws-maven/4.8.0.RELEASE/aws-maven-4.8.0.RELEASE.jar": {
       "sha256": "00dec69ddcddf05c947fb0a87d5178d986baab053471f80d52699590e1fb3ba8"
     },
@@ -1087,6 +1123,12 @@
     },
     "progrock/progrock/0.1.2/progrock-0.1.2.pom": {
       "sha256": "eab50b723c9e78490f583cb99fb1d46bc280ff11fd5f8523b9bed76a64eaf023"
+    },
+    "rewrite-clj/rewrite-clj/1.2.54/rewrite-clj-1.2.54.jar": {
+      "sha256": "a81a1df617a17827e6a99326437be57a72460fbd5a55937c9601dc35222506d4"
+    },
+    "rewrite-clj/rewrite-clj/1.2.54/rewrite-clj-1.2.54.pom": {
+      "sha256": "235ac1e92dbb8b1bda920a8809864191134e24155925b1d7353255c960618095"
     },
     "s3-wagon-private/s3-wagon-private/1.3.5/s3-wagon-private-1.3.5.jar": {
       "sha256": "c17593c220292c03f78977a5b3bcf5826a2b94e6a21d346ecd3cc5ad92954008"
