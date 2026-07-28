@@ -75,6 +75,9 @@
 (defn- records-path [zone]
   (str "/v1/domains/" (normalized-zone zone) "/records"))
 
+(defn- rrset-path [zone type name]
+  (str (records-path zone) "/" type "/" name))
+
 (defn- request!
   [provider operation-deadline {:keys [body method mutation? path query]}]
   (let [timeout (timeout-millis operation-deadline)]
@@ -233,13 +236,13 @@
        :type (:type record)
        :data (portable-data record)})))
 
-(defn- get-records* [provider operation-deadline zone]
+(defn- get-records-at-path* [provider operation-deadline zone path]
   (loop [offset  0
          records []]
     (let [response (request! provider
                              operation-deadline
                              {:method :get
-                              :path   (records-path zone)
+                              :path   path
                               :query  {:offset offset
                                        :limit  max-page-size}})
           status   (:status response)]
@@ -256,6 +259,12 @@
 
         :else
         (request-failure! status)))))
+
+(defn- get-records* [provider operation-deadline zone]
+  (get-records-at-path* provider
+                        operation-deadline
+                        zone
+                        (records-path zone)))
 
 (defn- strip-trailing-dot [target]
   (when-not (and (string? target) (seq target))
@@ -360,13 +369,10 @@
                  cause)))))
   nil)
 
-(defn- add-records! [provider operation-deadline zone payloads]
+(defn- mutation-request! [provider operation-deadline request]
   (let [response (request! provider
                            operation-deadline
-                           {:body      payloads
-                            :method    :patch
-                            :mutation? true
-                            :path      (records-path zone)})]
+                           (assoc request :mutation? true))]
     (try
       (checked-mutation-response! response)
       (catch clojure.lang.ExceptionInfo cause
@@ -380,13 +386,112 @@
     (if (empty? additions)
       []
       (do
-        (add-records! provider operation-deadline zone additions)
+        (mutation-request! provider
+                           operation-deadline
+                           {:body   additions
+                            :method :patch
+                            :path   (records-path zone)})
         (try
           (let [stored (get-records* provider operation-deadline zone)]
             (records-minus (records-in-rrsets stored desired)
                            (records-in-rrsets existing desired)))
           (catch clojure.lang.ExceptionInfo cause
             (throw (zone-unknown cause))))))))
+
+(defn- set-plan [records zone]
+  (let [entries (mapv (fn [record]
+                        (let [payload (record-payload record zone)
+                              desired (portable-record payload zone)]
+                          {:key     (rrset-key desired)
+                           :payload payload
+                           :record  desired
+                           :scope   [(:name payload) (:type payload)]}))
+                      records)
+        scopes  (distinct (map :scope entries))]
+    (mapv (fn [scope]
+            (let [group   (filterv #(= scope (:scope %)) entries)
+                  payload (:payload (first group))]
+              {:body         (mapv #(dissoc (:payload %) :name :type) group)
+               :desired      (mapv :record group)
+               :desired-keys (set (map :key group))
+               :name         (:name payload)
+               :type         (:type payload)}))
+          scopes)))
+
+(defn- stored-record-payload [record zone]
+  (try
+    (record-payload record zone)
+    (catch clojure.lang.ExceptionInfo cause
+      (if (= :invalid-record (::type (ex-data cause)))
+        (invalid-response!)
+        (throw cause)))))
+
+(defn- complete-set-plan! [provider operation-deadline zone plan]
+  (mapv
+   (fn [{:keys [desired desired-keys name type] :as action}]
+     (if-not (= "SRV" type)
+       (assoc action :expected desired)
+       (let [existing (get-records-at-path*
+                       provider
+                       operation-deadline
+                       zone
+                       (rrset-path zone type name))
+             entries  (mapv (fn [record]
+                              {:payload (stored-record-payload record zone)
+                               :record  record})
+                            existing)]
+         (when-not (every? #(= [name type]
+                               [(:name (:payload %)) (:type (:payload %))])
+                           entries)
+           (invalid-response!))
+         (let [preserved (filterv #(not (contains? desired-keys
+                                                   (rrset-key (:record %))))
+                                  entries)]
+           (-> action
+               (update :body into
+                       (map #(dissoc (:payload %) :name :type) preserved))
+               (assoc :expected
+                      (into desired (map :record preserved))))))))
+   plan))
+
+(defn- replace-rrsets! [provider operation-deadline zone plan]
+  (loop [remaining         plan
+         write-dispatched? false]
+    (when-let [{:keys [body name type]} (first remaining)]
+      (try
+        (mutation-request! provider
+                           operation-deadline
+                           {:body   body
+                            :method :put
+                            :path   (rrset-path zone type name)})
+        (catch clojure.lang.ExceptionInfo cause
+          (throw (if write-dispatched?
+                   (zone-unknown cause)
+                   cause))))
+      (recur (subvec remaining 1) true))))
+
+(defn- set-records* [provider operation-deadline zone records]
+  (let [plan (complete-set-plan! provider
+                                 operation-deadline
+                                 zone
+                                 (set-plan records zone))]
+    (replace-rrsets! provider operation-deadline zone plan)
+    (try
+      (into []
+            (mapcat (fn [{:keys [desired-keys expected name type]}]
+                      (let [stored (get-records-at-path*
+                                    provider
+                                    operation-deadline
+                                    zone
+                                    (rrset-path zone type name))]
+                        (when-not (= (frequencies (map #(dissoc % :ttl) expected))
+                                     (frequencies (map #(dissoc % :ttl) stored)))
+                          (invalid-response!))
+                        (filterv #(contains? desired-keys (rrset-key %))
+                                 stored))))
+            plan)
+      (catch clojure.lang.ExceptionInfo cause
+        (throw (zone-unknown cause))))))
 
 (defn- mutation-outcome [operation zone f]
   (operation-outcome operation :records zone true f))
@@ -404,7 +509,15 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :append-records zone
-       #(append-records* this (:deadline opts) zone records)))))
+       #(append-records* this (:deadline opts) zone records))))
+
+  protocols/RecordSetter
+  (-set-records! [this zone records opts]
+    (if (empty? records)
+      {:ol.protocol53/result {:records []}}
+      (mutation-outcome
+       :set-records zone
+       #(set-records* this (:deadline opts) zone records)))))
 
 (def ^:private ^String redacted-provider
   (str "#ol.protocol53.godaddy.Provider"

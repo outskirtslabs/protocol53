@@ -208,12 +208,14 @@
                                   outputs))
          :record-getter?   (satisfies? protocols/RecordGetter sut)
          :record-appender? (satisfies? protocols/RecordAppender sut)
+         :record-setter?   (satisfies? protocols/RecordSetter sut)
          :zone-lister?     (satisfies? protocols/ZoneLister sut)
          :list-outcome     (p53/list-zones! sut (opts))}
         => {:all-redacted?    true
             :leaked?          false
             :record-getter?   true
             :record-appender? true
+            :record-setter?   true
             :zone-lister?     false
             :list-outcome
             {:ol.protocol53/error
@@ -488,6 +490,350 @@
               :zone-state :unknown
               :retryable? false}}
             :after-methods  [:get :patch]})))
+
+  (behavior "sets complete RRsets in first-appearance order and returns Stored Records"
+    (let [calls        (atom [])
+          stored-a     [(api-record "www" 600 "A" "192.0.2.1")
+                        (api-record "www" 1200 "A" "192.0.2.2")]
+          existing-srv [(api-record "voip" 1800 "SRV" "ldap.example.net"
+                                    {:port     389
+                                     :priority 0
+                                     :protocol "_tcp"
+                                     :service  "_ldap"
+                                     :weight   0})]
+          stored-srv   [(api-record "voip" 600 "srv" "sip.example.net"
+                                    {:port     5060
+                                     :priority 20
+                                     :protocol "_TCP"
+                                     :service  "_SIP"
+                                     :weight   5})
+                        (api-record "voip" 900 "SRV" "xmpp.example.net"
+                                    {:port     5222
+                                     :priority 10
+                                     :protocol "_tcp"
+                                     :service  "_xmpp"
+                                     :weight   1})
+                        (first existing-srv)]
+          stored-mx    [(api-record "@" 1200 "MX" "mail.example.net"
+                                    {:priority 10})]
+          client       (scripted-client [(response existing-srv)
+                                         (response 204 "")
+                                         (response 200 {})
+                                         (response 204 "")
+                                         (response stored-a)
+                                         (response stored-srv)
+                                         (response stored-mx)]
+                                        calls)
+          result       (p53/set-records!
+                        (provider client)
+                        "Example.COM."
+                        [{:name "WWW" :ttl 300 :type "a" :data "192.0.2.1"}
+                         {:name "_SIP._TCP.VoIP"             :ttl 300 :type "srv"
+                          :data "20 5 5060 sip.example.net."}
+                         {:name "www.example.com." :ttl 900 :type "A"
+                          :data "192.0.2.2"}
+                         {:name "_XMPP._TCP.voip"             :ttl 900 :type "SRV"
+                          :data "10 1 5222 xmpp.example.net."}
+                         {:name "@"                    :ttl 1200 :type "MX"
+                          :data "10 mail.example.net."}]
+                        (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/result
+            {:records [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+                       {:name "www" :ttl 1200 :type "A" :data "192.0.2.2"}
+                       {:name "_sip._tcp.voip"             :ttl 600 :type "SRV"
+                        :data "20 5 5060 sip.example.net."}
+                       {:name "_xmpp._tcp.voip"             :ttl 900 :type "SRV"
+                        :data "10 1 5222 xmpp.example.net."}
+                       {:name "@"                    :ttl 1200 :type "MX"
+                        :data "10 mail.example.net."}]}}
+        @calls
+        => [{:method            :get
+             :path              "/v1/domains/example.com/records/SRV/voip"
+             :query             {"offset" "0" "limit" "500"}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true}
+            {:method            :put
+             :path              "/v1/domains/example.com/records/A/www"
+             :query             {}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true
+             :body              [{:data "192.0.2.1" :ttl 600}
+                                 {:data "192.0.2.2" :ttl 900}]
+             :content-type      "application/json"}
+            {:method            :put
+             :path              "/v1/domains/example.com/records/SRV/voip"
+             :query             {}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true
+             :body              [{:data     "sip.example.net"
+                                  :port     5060
+                                  :priority 20
+                                  :protocol "_tcp"
+                                  :service  "_sip"
+                                  :ttl      600
+                                  :weight   5}
+                                 {:data     "xmpp.example.net"
+                                  :port     5222
+                                  :priority 10
+                                  :protocol "_tcp"
+                                  :service  "_xmpp"
+                                  :ttl      900
+                                  :weight   1}
+                                 {:data     "ldap.example.net"
+                                  :port     389
+                                  :priority 0
+                                  :protocol "_tcp"
+                                  :service  "_ldap"
+                                  :ttl      1800
+                                  :weight   0}]
+             :content-type      "application/json"}
+            {:method            :put
+             :path              "/v1/domains/example.com/records/MX/@"
+             :query             {}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true
+             :body              [{:data     "mail.example.net"
+                                  :priority 10
+                                  :ttl      1200}]
+             :content-type      "application/json"}
+            {:method            :get
+             :path              "/v1/domains/example.com/records/A/www"
+             :query             {"offset" "0" "limit" "500"}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true}
+            {:method            :get
+             :path              "/v1/domains/example.com/records/SRV/voip"
+             :query             {"offset" "0" "limit" "500"}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true}
+            {:method            :get
+             :path              "/v1/domains/example.com/records/MX/@"
+             :query             {"offset" "0" "limit" "500"}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        nil
+             :timeout-positive? true}])))
+
+  (behavior "keeps the Zone unchanged when SRV preservation reads fail"
+    (let [calls  (atom [])
+          result (p53/set-records!
+                  (provider
+                   (scripted-client [(response 503 "unavailable")] calls))
+                  "example.com."
+                  [{:name "_sip._tcp.voip"             :ttl 600 :type "SRV"
+                    :data "20 5 5060 sip.example.net."}]
+                  (opts))]
+      (assertions
+        {:outcome result :methods (mapv :method @calls)}
+        => {:outcome
+            {:ol.protocol53/error
+             {:type       :provider-request
+              :message    "GoDaddy request failed with HTTP 503"
+              :operation  :set-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unchanged
+              :retryable? true}}
+            :methods [:get]})))
+
+  (behavior "short-circuits empty Sets and prevalidates every desired group"
+    (let [calls   (atom [])
+          sut     (provider (scripted-client [] calls))
+          invalid {:ol.protocol53/error
+                   {:type       :invalid-record
+                    :message    "Invalid GoDaddy record data"
+                    :operation  :set-records
+                    :provider   :godaddy
+                    :zone       "example.com."
+                    :zone-state :unchanged
+                    :retryable? false}}]
+      (assertions
+        [(p53/set-records! sut "example.com." [] (opts))
+         (p53/set-records!
+          sut
+          "example.com."
+          [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+           {:name "mail" :ttl 600 :type "MX" :data "malformed"}]
+          (opts))
+         (p53/set-records!
+          sut
+          "example.com."
+          [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+           {:name "voip" :ttl 600 :type "SRV"
+            :data "20 5 5060 service.example.net."}]
+          (opts))]
+        => [{:ol.protocol53/result {:records []}} invalid invalid]
+        @calls => [])))
+
+  (behavior "stops Set at the first uncertain failure"
+    (let [records [{:name "one" :ttl 600 :type "A" :data "192.0.2.1"}
+                   {:name "two" :ttl 600 :type "TXT" :data "two"}
+                   {:name "@"                    :ttl 600 :type "MX"
+                    :data "10 mail.example.net."}]
+          run     (fn [steps]
+                    (let [calls  (atom [])
+                          result (p53/set-records!
+                                  (provider (scripted-client steps calls))
+                                  "example.com."
+                                  records
+                                  (opts))]
+                      {:outcome result :methods (mapv :method @calls)}))
+          runs    [(run [{:throw (java.io.IOException. "offline")}])
+                   (run [(response 503 "unavailable")])
+                   (run [(response 200 "not-json")])
+                   (run [(response 204 "")
+                         (response 503 "unavailable")])
+                   (run [(response 204 "")
+                         (response 204 "")
+                         (response 204 "")
+                         (response 503 "unavailable")])]]
+      (assertions
+        runs
+        => [{:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed"
+               :operation  :set-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:put]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed with HTTP 503"
+               :operation  :set-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:put]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-response
+               :message    "GoDaddy returned malformed JSON"
+               :operation  :set-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? false}}
+             :methods [:put]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed with HTTP 503"
+               :operation  :set-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:put :put]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed with HTTP 503"
+               :operation  :set-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:put :put :put :get]}])))
+
+  (behavior "rejects missing, extra, or malformed Stored RRset data"
+    (let [record  {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          run     (fn [stored]
+                    (let [calls  (atom [])
+                          result (p53/set-records!
+                                  (provider
+                                   (scripted-client [(response 204 "")
+                                                     (response stored)]
+                                                    calls))
+                                  "example.com."
+                                  [record]
+                                  (opts))]
+                      {:outcome result :methods (mapv :method @calls)}))
+          runs    [(run [])
+                   (run [(api-record "www" 600 "A" "192.0.2.1")
+                         (api-record "www" 600 "A" "192.0.2.2")])
+                   (run [{:name "www" :type "A" :data "192.0.2.1"}])]
+          invalid {:ol.protocol53/error
+                   {:type       :provider-response
+                    :message    "GoDaddy returned an invalid response"
+                    :operation  :set-records
+                    :provider   :godaddy
+                    :zone       "example.com."
+                    :zone-state :unknown
+                    :retryable? false}}]
+      (assertions
+        runs
+        => [{:outcome invalid :methods [:put :get]}
+            {:outcome invalid :methods [:put :get]}
+            {:outcome invalid :methods [:put :get]}])))
+
+  (behavior "distinguishes Set deadlines before and after an earlier write"
+    (let [records      [{:name "one" :ttl 600 :type "A" :data "192.0.2.1"}
+                        {:name "two" :ttl 600 :type "TXT" :data "two"}]
+          before-calls (atom [])
+          before       (with-redefs [deadline/remaining
+                                     (constantly (Duration/ofNanos 999999))]
+                         (p53/set-records!
+                          (provider (scripted-client [] before-calls))
+                          "example.com."
+                          records
+                          (opts)))
+          later-calls  (atom [])
+          checks       (atom 0)
+          later        (with-redefs [deadline/remaining
+                                     (fn [_]
+                                       (if (<= (swap! checks inc) 3)
+                                         (Duration/ofSeconds 5)
+                                         (Duration/ofNanos 999999)))]
+                         (p53/set-records!
+                          (provider
+                           (scripted-client [(response 204 "")] later-calls))
+                          "example.com."
+                          records
+                          (opts)))]
+      (assertions
+        {:before         before
+         :before-methods (mapv :method @before-calls)
+         :later          later
+         :later-methods  (mapv :method @later-calls)}
+        => {:before
+            {:ol.protocol53/error
+             {:type       :deadline-exceeded
+              :message    "Deadline exceeded during GoDaddy request"
+              :operation  :set-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unchanged
+              :retryable? false}}
+            :before-methods []
+            :later
+            {:ol.protocol53/error
+             {:type       :deadline-exceeded
+              :message    "Deadline exceeded during GoDaddy request"
+              :operation  :set-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? false}}
+            :later-methods  [:put]})))
 
   (behavior "rejects malformed JSON, page shapes, and Record fields"
     (let [outcome (fn [body]
