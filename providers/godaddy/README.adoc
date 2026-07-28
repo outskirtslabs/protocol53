@@ -12,7 +12,7 @@ Until the first release, use the provider's Git coordinate:
 ----
 {:deps {com.outskirtslabs/protocol53-godaddy
         {:git/url "https://github.com/outskirtslabs/protocol53.git"
-         :git/sha "f1365af9792b3d4b31a701d6705681b0a03538e1"
+         :git/sha "455d9fbb5b52bf075fa24f8e9d3a634eb8ef4863"
          :deps/root "providers/godaddy"}}}
 ----
 
