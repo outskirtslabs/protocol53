@@ -209,6 +209,7 @@
          :record-getter?   (satisfies? protocols/RecordGetter sut)
          :record-appender? (satisfies? protocols/RecordAppender sut)
          :record-setter?   (satisfies? protocols/RecordSetter sut)
+         :record-deleter?  (satisfies? protocols/RecordDeleter sut)
          :zone-lister?     (satisfies? protocols/ZoneLister sut)
          :list-outcome     (p53/list-zones! sut (opts))}
         => {:all-redacted?    true
@@ -216,6 +217,7 @@
             :record-getter?   true
             :record-appender? true
             :record-setter?   true
+            :record-deleter?  true
             :zone-lister?     false
             :list-outcome
             {:ol.protocol53/error
@@ -834,6 +836,285 @@
               :zone-state :unknown
               :retryable? false}}
             :later-methods  [:put]})))
+
+  (behavior "deletes selected Stored Records and preserves every survivor"
+    (let [calls    (atom [])
+          existing [(api-record "keep" 600 "TXT" "unrelated")
+                    (api-record "host" 600 "A" "192.0.2.1")
+                    (api-record "host" 600 "A" "192.0.2.2")
+                    (api-record "host" 600 "TXT" "")
+                    (api-record "host" 600 "TXT" "keep")
+                    (api-record "ttlwild" 900 "A" "192.0.2.3")
+                    (api-record "datawild" 900 "TXT" "one")
+                    (api-record "datawild" 900 "TXT" "two")
+                    (api-record "all" 1200 "A" "192.0.2.4")
+                    (api-record "all" 1200 "TXT" "gone")
+                    (api-record "voip" 600 "SRV" "sip.example.net"
+                                {:port     5060
+                                 :priority 10
+                                 :protocol "_tcp"
+                                 :service  "_sip"
+                                 :weight   5})
+                    (api-record "voip" 900 "SRV" "xmpp.example.net"
+                                {:port     5222
+                                 :priority 20
+                                 :protocol "_tcp"
+                                 :service  "_xmpp"
+                                 :weight   1})]
+          client   (scripted-client
+                    (into [(response existing)]
+                          (repeat 7 (response 204 "")))
+                    calls)
+          result   (p53/delete-records!
+                    (provider client)
+                    "Example.COM."
+                    [{:name "HOST" :type "txt" :data ""}
+                     {:name "host.example.com." :ttl 300 :type "A"
+                      :data "192.0.2.1"}
+                     {:name "ttlwild" :ttl 600}
+                     {:name "ttlwild" :type "A" :data "192.0.2.3"}
+                     {:name "datawild" :ttl 900 :type "TXT"}
+                     {:name "all"}
+                     {:name "_SIP._TCP.VoIP"}
+                     {:name "host" :ttl 300 :type "A" :data "192.0.2.1"}
+                     {:name "missing"}]
+                    (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/result
+            {:records [{:name "host" :ttl 600 :type "TXT" :data ""}
+                       {:name "host" :ttl 600 :type "A" :data "192.0.2.1"}
+                       {:name "ttlwild" :ttl 900 :type "A" :data "192.0.2.3"}
+                       {:name "datawild" :ttl 900 :type "TXT" :data "one"}
+                       {:name "datawild" :ttl 900 :type "TXT" :data "two"}
+                       {:name "all" :ttl 1200 :type "A" :data "192.0.2.4"}
+                       {:name "all" :ttl 1200 :type "TXT" :data "gone"}
+                       {:name "_sip._tcp.voip"             :ttl 600 :type "SRV"
+                        :data "10 5 5060 sip.example.net."}]}}
+        (mapv #(select-keys % [:method :path :body]) @calls)
+        => [{:method :get
+             :path   "/v1/domains/example.com/records"}
+            {:method :put
+             :path   "/v1/domains/example.com/records/TXT/host"
+             :body   [{:data "keep" :ttl 600}]}
+            {:method :put
+             :path   "/v1/domains/example.com/records/A/host"
+             :body   [{:data "192.0.2.2" :ttl 600}]}
+            {:method :delete
+             :path   "/v1/domains/example.com/records/A/ttlwild"}
+            {:method :delete
+             :path   "/v1/domains/example.com/records/TXT/datawild"}
+            {:method :delete
+             :path   "/v1/domains/example.com/records/A/all"}
+            {:method :delete
+             :path   "/v1/domains/example.com/records/TXT/all"}
+            {:method :put
+             :path   "/v1/domains/example.com/records/SRV/voip"
+             :body   [{:data     "xmpp.example.net"
+                       :port     5222
+                       :priority 20
+                       :protocol "_tcp"
+                       :service  "_xmpp"
+                       :ttl      900
+                       :weight   1}]}])))
+
+  (behavior "short-circuits empty and unmatched Deletes"
+    (let [calls  (atom [])
+          sut    (provider
+                  (scripted-client
+                   [(response [(api-record "keep" 600 "A" "192.0.2.1")])]
+                   calls))
+          result [(p53/delete-records! sut "example.com." [] (opts))
+                  (p53/delete-records!
+                   sut
+                   "example.com."
+                   [{:name "missing"}]
+                   (opts))]]
+      (assertions
+        {:outcomes result :methods (mapv :method @calls)}
+        => {:outcomes [{:ol.protocol53/result {:records []}}
+                       {:ol.protocol53/result {:records []}}]
+            :methods  [:get]})))
+
+  (behavior "validates the complete Delete plan before writing"
+    (let [local-calls  (atom [])
+          local        (fn [selectors]
+                         (p53/delete-records!
+                          (provider (scripted-client [] local-calls))
+                          "example.com."
+                          selectors
+                          (opts)))
+          remote-calls (atom [])
+          remote       (p53/delete-records!
+                        (provider
+                         (scripted-client
+                          [(response [{:name "www" :type "A" :data "192.0.2.1"}])]
+                          remote-calls))
+                        "example.com."
+                        [{:name "www"}]
+                        (opts))
+          invalid      {:ol.protocol53/error
+                        {:type       :invalid-record
+                         :message    "Invalid GoDaddy record data"
+                         :operation  :delete-records
+                         :provider   :godaddy
+                         :zone       "example.com."
+                         :zone-state :unchanged
+                         :retryable? false}}]
+      (assertions
+        {:local-outcomes [(local [{:name "www"}
+                                  {:name "mail" :type "MX" :data "malformed"}])
+                          (local [{:name " "}])
+                          (local [{:name "www" :type " "}])]
+         :local-methods  (mapv :method @local-calls)
+         :remote-outcome remote
+         :remote-methods (mapv :method @remote-calls)}
+        => {:local-outcomes [invalid invalid invalid]
+            :local-methods  []
+            :remote-outcome
+            {:ol.protocol53/error
+             {:type       :provider-response
+              :message    "GoDaddy returned an invalid response"
+              :operation  :delete-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unchanged
+              :retryable? false}}
+            :remote-methods [:get]})))
+
+  (behavior "stops Delete at the first uncertain failure"
+    (let [existing  [(api-record "one" 600 "A" "192.0.2.1")
+                     (api-record "two" 600 "TXT" "two")
+                     (api-record "@" 600 "MX" "mail.example.net"
+                                 {:priority 10})]
+          selectors [{:name "one"} {:name "two"} {:name "@"}]
+          run       (fn [steps]
+                      (let [calls  (atom [])
+                            result (p53/delete-records!
+                                    (provider (scripted-client steps calls))
+                                    "example.com."
+                                    selectors
+                                    (opts))]
+                        {:outcome result :methods (mapv :method @calls)}))
+          runs      [(run [(response 503 "unavailable")])
+                     (run [(response existing)
+                           {:throw (java.io.IOException. "offline")}])
+                     (run [(response existing) (response 503 "unavailable")])
+                     (run [(response existing) (response 200 "not-json")])
+                     (run [(response existing) (response 204 "")
+                           (response 503 "unavailable")])]]
+      (assertions
+        runs
+        => [{:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed with HTTP 503"
+               :operation  :delete-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unchanged
+               :retryable? true}}
+             :methods [:get]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed"
+               :operation  :delete-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:get :delete]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed with HTTP 503"
+               :operation  :delete-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:get :delete]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-response
+               :message    "GoDaddy returned malformed JSON"
+               :operation  :delete-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? false}}
+             :methods [:get :delete]}
+            {:outcome
+             {:ol.protocol53/error
+              {:type       :provider-request
+               :message    "GoDaddy request failed with HTTP 503"
+               :operation  :delete-records
+               :provider   :godaddy
+               :zone       "example.com."
+               :zone-state :unknown
+               :retryable? true}}
+             :methods [:get :delete :delete]}])))
+
+  (behavior "distinguishes Delete deadlines before and after an earlier write"
+    (let [existing      [(api-record "one" 600 "A" "192.0.2.1")
+                         (api-record "two" 600 "TXT" "two")]
+          selectors     [{:name "one"} {:name "two"}]
+          before-calls  (atom [])
+          before-checks (atom 0)
+          before        (with-redefs [deadline/expired? (constantly false)
+                                      deadline/remaining
+                                      (fn [_]
+                                        (if (= 1 (swap! before-checks inc))
+                                          (Duration/ofSeconds 5)
+                                          (Duration/ofNanos 999999)))]
+                          (p53/delete-records!
+                           (provider
+                            (scripted-client [(response existing)] before-calls))
+                           "example.com."
+                           selectors
+                           (opts)))
+          later-calls   (atom [])
+          later-checks  (atom 0)
+          later         (with-redefs [deadline/expired? (constantly false)
+                                      deadline/remaining
+                                      (fn [_]
+                                        (if (<= (swap! later-checks inc) 2)
+                                          (Duration/ofSeconds 5)
+                                          (Duration/ofNanos 999999)))]
+                          (p53/delete-records!
+                           (provider
+                            (scripted-client [(response existing)
+                                              (response 204 "")]
+                                             later-calls))
+                           "example.com."
+                           selectors
+                           (opts)))]
+      (assertions
+        {:before         before
+         :before-methods (mapv :method @before-calls)
+         :later          later
+         :later-methods  (mapv :method @later-calls)}
+        => {:before
+            {:ol.protocol53/error
+             {:type       :deadline-exceeded
+              :message    "Deadline exceeded during GoDaddy request"
+              :operation  :delete-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unchanged
+              :retryable? false}}
+            :before-methods [:get]
+            :later
+            {:ol.protocol53/error
+             {:type       :deadline-exceeded
+              :message    "Deadline exceeded during GoDaddy request"
+              :operation  :delete-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? false}}
+            :later-methods  [:get :delete]})))
 
   (behavior "rejects malformed JSON, page shapes, and Record fields"
     (let [outcome (fn [body]

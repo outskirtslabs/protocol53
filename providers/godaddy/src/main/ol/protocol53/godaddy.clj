@@ -454,16 +454,13 @@
                       (into desired (map :record preserved))))))))
    plan))
 
-(defn- replace-rrsets! [provider operation-deadline zone plan]
+(defn- execute-mutation-plan!
+  [provider operation-deadline plan]
   (loop [remaining         plan
          write-dispatched? false]
-    (when-let [{:keys [body name type]} (first remaining)]
+    (when-let [request (first remaining)]
       (try
-        (mutation-request! provider
-                           operation-deadline
-                           {:body   body
-                            :method :put
-                            :path   (rrset-path zone type name)})
+        (mutation-request! provider operation-deadline request)
         (catch clojure.lang.ExceptionInfo cause
           (throw (if write-dispatched?
                    (zone-unknown cause)
@@ -475,7 +472,14 @@
                                  operation-deadline
                                  zone
                                  (set-plan records zone))]
-    (replace-rrsets! provider operation-deadline zone plan)
+    (execute-mutation-plan!
+     provider
+     operation-deadline
+     (mapv (fn [{:keys [body name type]}]
+             {:body   body
+              :method :put
+              :path   (rrset-path zone type name)})
+           plan))
     (try
       (into []
             (mapcat (fn [{:keys [desired-keys expected name type]}]
@@ -492,6 +496,84 @@
             plan)
       (catch clojure.lang.ExceptionInfo cause
         (throw (zone-unknown cause))))))
+
+(defn- normalized-selector [selector zone]
+  (let [name     (relative-name (:name selector) zone)
+        type     (when (contains? selector :type)
+                   (canonical-type (:type selector)))
+        selector (cond-> {:name name}
+                   type (assoc :type type)
+                   (contains? selector :ttl)
+                   (assoc :ttl (max minimum-ttl (:ttl selector)))
+                   (contains? selector :data) (assoc :data (:data selector)))]
+    (when (or (str/blank? name)
+              (and (contains? selector :type) (str/blank? type)))
+      (invalid-record!))
+    (if (and (contains? selector :type)
+             (contains? selector :data))
+      (let [record (portable-record
+                    (record-payload
+                     {:name name
+                      :ttl  (get selector :ttl minimum-ttl)
+                      :type type
+                      :data (:data selector)}
+                     zone)
+                    zone)]
+        (assoc selector :data (:data record)))
+      selector)))
+
+(defn- selector-match? [selector record]
+  (and (= (:name selector) (:name record))
+       (every? (fn [key]
+                 (or (not (contains? selector key))
+                     (= (get selector key) (get record key))))
+               [:type :ttl :data])))
+
+(defn- selected-entries [entries selectors]
+  (loop [remaining        selectors
+         selected-indexes #{}
+         selected         []]
+    (if-let [selector (first remaining)]
+      (let [matches (filterv #(and (not (contains? selected-indexes (:index %)))
+                                   (selector-match? selector (:record %)))
+                             entries)]
+        (recur (subvec remaining 1)
+               (into selected-indexes (map :index matches))
+               (into selected matches)))
+      selected)))
+
+(defn- delete-plan [records selectors zone]
+  (let [entries          (mapv (fn [index record]
+                                 (let [payload (stored-record-payload record zone)]
+                                   {:index   index
+                                    :payload payload
+                                    :record  record
+                                    :scope   [(:name payload) (:type payload)]}))
+                               (range)
+                               records)
+        selected         (selected-entries entries selectors)
+        selected-indexes (set (map :index selected))
+        scopes           (distinct (map :scope selected))]
+    {:matched  (mapv :record selected)
+     :requests (mapv
+                (fn [[name type :as scope]]
+                  (let [survivors (filterv #(and (= scope (:scope %))
+                                                 (not (contains? selected-indexes
+                                                                 (:index %))))
+                                           entries)]
+                    (cond-> {:method (if (empty? survivors) :delete :put)
+                             :path   (rrset-path zone type name)}
+                      (seq survivors)
+                      (assoc :body (mapv #(dissoc (:payload %) :name :type)
+                                         survivors)))))
+                scopes)}))
+
+(defn- delete-records* [provider operation-deadline zone selectors]
+  (let [selectors                  (mapv #(normalized-selector % zone) selectors)
+        records                    (get-records* provider operation-deadline zone)
+        {:keys [matched requests]} (delete-plan records selectors zone)]
+    (execute-mutation-plan! provider operation-deadline requests)
+    matched))
 
 (defn- mutation-outcome [operation zone f]
   (operation-outcome operation :records zone true f))
@@ -517,7 +599,15 @@
       {:ol.protocol53/result {:records []}}
       (mutation-outcome
        :set-records zone
-       #(set-records* this (:deadline opts) zone records)))))
+       #(set-records* this (:deadline opts) zone records))))
+
+  protocols/RecordDeleter
+  (-delete-records! [this zone selectors opts]
+    (if (empty? selectors)
+      {:ol.protocol53/result {:records []}}
+      (mutation-outcome
+       :delete-records zone
+       #(delete-records* this (:deadline opts) zone selectors)))))
 
 (def ^:private ^String redacted-provider
   (str "#ol.protocol53.godaddy.Provider"
