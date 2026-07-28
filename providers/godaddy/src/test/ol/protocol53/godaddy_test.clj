@@ -30,14 +30,20 @@
     {}))
 
 (defn- request-view [request]
-  (let [^URI uri (:uri request)]
-    {:method            (:method request)
-     :path              (.getPath uri)
-     :query             (query-map uri)
-     :accept            (get-in request [:headers "Accept"])
-     :authorization     (get-in request [:headers "Authorization"])
-     :shopper-id        (get-in request [:headers "X-Shopper-Id"])
-     :timeout-positive? (pos? (:timeout request))}))
+  (let [^URI uri (:uri request)
+        body?    (some? (:body request))
+        body     (when body?
+                   (let [parsed (json/read-str (:body request) {:key-fn keyword})]
+                     (if (sequential? parsed) (vec parsed) parsed)))]
+    (cond-> {:method            (:method request)
+             :path              (.getPath uri)
+             :query             (query-map uri)
+             :accept            (get-in request [:headers "Accept"])
+             :authorization     (get-in request [:headers "Authorization"])
+             :shopper-id        (get-in request [:headers "X-Shopper-Id"])
+             :timeout-positive? (pos? (:timeout request))}
+      body? (assoc :body body
+                   :content-type (get-in request [:headers "Content-Type"])))))
 
 (defn- response
   ([body]
@@ -186,7 +192,7 @@
              :retryable? false}}
         (count @calls) => 1)))
 
-  (behavior "redacts configuration and advertises only RecordGetter"
+  (behavior "redacts configuration and advertises Record capabilities"
     (let [sut     (godaddy/provider {:api-key    "visible-api-key"
                                      :api-secret "visible-api-secret"
                                      :shopper-id "visible-shopper-id"})
@@ -194,19 +200,21 @@
                    (binding [*print-dup* true] (pr-str sut))
                    (with-out-str (pprint/pprint sut))]]
       (assertions
-        {:all-redacted?  (every? #(str/includes? % "<redacted>") outputs)
-         :leaked?        (boolean
-                          (some #(or (str/includes? % "visible-api-key")
-                                     (str/includes? % "visible-api-secret")
-                                     (str/includes? % "visible-shopper-id"))
-                                outputs))
-         :record-getter? (satisfies? protocols/RecordGetter sut)
-         :zone-lister?   (satisfies? protocols/ZoneLister sut)
-         :list-outcome   (p53/list-zones! sut (opts))}
-        => {:all-redacted?  true
-            :leaked?        false
-            :record-getter? true
-            :zone-lister?   false
+        {:all-redacted?    (every? #(str/includes? % "<redacted>") outputs)
+         :leaked?          (boolean
+                            (some #(or (str/includes? % "visible-api-key")
+                                       (str/includes? % "visible-api-secret")
+                                       (str/includes? % "visible-shopper-id"))
+                                  outputs))
+         :record-getter?   (satisfies? protocols/RecordGetter sut)
+         :record-appender? (satisfies? protocols/RecordAppender sut)
+         :zone-lister?     (satisfies? protocols/ZoneLister sut)
+         :list-outcome     (p53/list-zones! sut (opts))}
+        => {:all-redacted?    true
+            :leaked?          false
+            :record-getter?   true
+            :record-appender? true
+            :zone-lister?     false
             :list-outcome
             {:ol.protocol53/error
              {:type       :unsupported-operation
@@ -214,6 +222,272 @@
               :operation  :list-zones
               :provider   :godaddy
               :retryable? false}}})))
+
+  (behavior "appends one preserving batch and returns the Stored Record multiset delta"
+    (let [calls    (atom [])
+          existing [(api-record "keep" 600 "TXT" "unrelated")
+                    (api-record "www" 600 "A" "192.0.2.1")
+                    (api-record "www" 600 "A" "192.0.2.9")]
+          stored   (into existing
+                         [(api-record "www" 600 "A" "192.0.2.2")
+                          (api-record "www" 1200 "A" "192.0.2.3")])
+          records  [{:name "www" :ttl 300 :type "A" :data "192.0.2.1"}
+                    {:name "WWW.Example.COM." :ttl 300 :type "a" :data "192.0.2.2"}
+                    {:name "www" :ttl 900 :type "A" :data "192.0.2.3"}]
+          client   (scripted-client [(response existing)
+                                     (response 204 "")
+                                     (response stored)]
+                                    calls)
+          result   (p53/append-records!
+                    (provider client {:shopper-id "shopper-id"})
+                    "Example.COM."
+                    records
+                    (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/result
+            {:records [{:name "www" :ttl 600 :type "A" :data "192.0.2.2"}
+                       {:name "www" :ttl 1200 :type "A" :data "192.0.2.3"}]}}
+        @calls
+        => [{:method            :get
+             :path              "/v1/domains/example.com/records"
+             :query             {"offset" "0" "limit" "500"}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        "shopper-id"
+             :timeout-positive? true}
+            {:method            :patch
+             :path              "/v1/domains/example.com/records"
+             :query             {}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        "shopper-id"
+             :timeout-positive? true
+             :body              [{:data "192.0.2.2"
+                                  :name "www"
+                                  :ttl  600
+                                  :type "A"}
+                                 {:data "192.0.2.3"
+                                  :name "www"
+                                  :ttl  900
+                                  :type "A"}]
+             :content-type      "application/json"}
+            {:method            :get
+             :path              "/v1/domains/example.com/records"
+             :query             {"offset" "0" "limit" "500"}
+             :accept            "application/json"
+             :authorization     "sso-key api-key:api-secret"
+             :shopper-id        "shopper-id"
+             :timeout-positive? true}])))
+
+  (behavior "converts structured Records in one successful batch"
+    (let [calls  (atom [])
+          stored [(api-record "@" 600 "MX" "mail.example.net" {:priority 10})
+                  (api-record "voip" 600 "SRV" "service.example.net"
+                              {:port     5060
+                               :priority 20
+                               :protocol "_tcp"
+                               :service  "_sip"
+                               :weight   5})]
+          client (scripted-client [(response [])
+                                   (response 200 {})
+                                   (response stored)]
+                                  calls)
+          result (p53/append-records!
+                  (provider client)
+                  "example.com."
+                  [{:name "@"                    :ttl 300 :type "MX"
+                    :data "10 mail.example.net."}
+                   {:name "_SIP._TCP.VoIP.Example.COM."    :ttl 300 :type "srv"
+                    :data "20 5 5060 service.example.net."}]
+                  (opts))]
+      (assertions
+        result
+        => {:ol.protocol53/result
+            {:records [{:name "@"                    :ttl 600 :type "MX"
+                        :data "10 mail.example.net."}
+                       {:name "_sip._tcp.voip"                 :ttl 600 :type "SRV"
+                        :data "20 5 5060 service.example.net."}]}}
+        (second @calls)
+        => {:method            :patch
+            :path              "/v1/domains/example.com/records"
+            :query             {}
+            :accept            "application/json"
+            :authorization     "sso-key api-key:api-secret"
+            :shopper-id        nil
+            :timeout-positive? true
+            :body              [{:data     "mail.example.net"
+                                 :name     "@"
+                                 :priority 10
+                                 :ttl      600
+                                 :type     "MX"}
+                                {:data     "service.example.net"
+                                 :name     "voip"
+                                 :port     5060
+                                 :priority 20
+                                 :protocol "_tcp"
+                                 :service  "_sip"
+                                 :ttl      600
+                                 :type     "SRV"
+                                 :weight   5}]
+            :content-type      "application/json"})))
+
+  (behavior "short-circuits empty and already-present appends"
+    (let [calls     (atom [])
+          record    {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          client    (scripted-client [(response [(api-record "www" 600 "A"
+                                                             "192.0.2.1")])]
+                                     calls)
+          sut       (provider client)
+          operation (opts)]
+      (assertions
+        [(p53/append-records! sut "example.com." [] operation)
+         (p53/append-records! sut "example.com." [record] operation)]
+        => [{:ol.protocol53/result {:records []}}
+            {:ol.protocol53/result {:records []}}]
+        (mapv :method @calls) => [:get])))
+
+  (behavior "validates every structured append Record before reading"
+    (let [calls   (atom [])
+          outcome (fn [records]
+                    (p53/append-records!
+                     (provider (scripted-client [] calls))
+                     "example.com."
+                     records
+                     (opts)))
+          invalid {:ol.protocol53/error
+                   {:type       :invalid-record
+                    :message    "Invalid GoDaddy record data"
+                    :operation  :append-records
+                    :provider   :godaddy
+                    :zone       "example.com."
+                    :zone-state :unchanged
+                    :retryable? false}}]
+      (assertions
+        [(outcome [{:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+                   {:name "mail" :ttl 600 :type "MX" :data "malformed"}])
+         (outcome [{:name "voip" :ttl 600 :type "SRV"
+                    :data "20 5 5060 service.example.net."}])
+         (outcome [{:name " " :ttl 600 :type "A" :data "192.0.2.1"}])
+         (outcome [{:name "www" :ttl 600 :type " " :data "192.0.2.1"}])]
+        => [invalid invalid invalid invalid]
+        @calls => [])))
+
+  (behavior "classifies every Append uncertainty boundary"
+    (let [record {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          run    (fn [steps]
+                   (let [calls  (atom [])
+                         result (p53/append-records!
+                                 (provider (scripted-client steps calls))
+                                 "example.com."
+                                 [record]
+                                 (opts))]
+                     {:outcome result :methods (mapv :method @calls)}))
+          runs   [(run [(response 503 "unavailable")])
+                  (run [(response [])
+                        {:throw (java.io.IOException. "offline")}])
+                  (run [(response []) (response 503 "unavailable")])
+                  (run [(response []) (response 200 "not-json")])
+                  (run [(response []) (response 204 "")
+                        (response 503 "unavailable")])]]
+      (assertions
+        (mapv :outcome runs)
+        => [{:ol.protocol53/error
+             {:type       :provider-request
+              :message    "GoDaddy request failed with HTTP 503"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unchanged
+              :retryable? true}}
+            {:ol.protocol53/error
+             {:type       :provider-request
+              :message    "GoDaddy request failed"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? true}}
+            {:ol.protocol53/error
+             {:type       :provider-request
+              :message    "GoDaddy request failed with HTTP 503"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? true}}
+            {:ol.protocol53/error
+             {:type       :provider-response
+              :message    "GoDaddy returned malformed JSON"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? false}}
+            {:ol.protocol53/error
+             {:type       :provider-request
+              :message    "GoDaddy request failed with HTTP 503"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? true}}]
+        (mapv :methods runs)
+        => [[:get] [:get :patch] [:get :patch]
+            [:get :patch] [:get :patch :get]])))
+
+  (behavior "distinguishes deadlines before and after Append dispatch"
+    (let [record        {:name "www" :ttl 600 :type "A" :data "192.0.2.1"}
+          before-calls  (atom [])
+          before-checks (atom 0)
+          before        (with-redefs [deadline/expired? (constantly false)
+                                      deadline/remaining
+                                      (fn [_]
+                                        (if (= 1 (swap! before-checks inc))
+                                          (Duration/ofSeconds 5)
+                                          (Duration/ofNanos 999999)))]
+                          (p53/append-records!
+                           (provider (scripted-client [(response [])] before-calls))
+                           "example.com."
+                           [record]
+                           (opts)))
+          after-calls   (atom [])
+          after-checks  (atom 0)
+          after         (with-redefs [deadline/expired?
+                                      (fn [_]
+                                        (= 3 (swap! after-checks inc)))]
+                          (p53/append-records!
+                           (provider
+                            (scripted-client [(response []) (response 204 "")]
+                                             after-calls))
+                           "example.com."
+                           [record]
+                           (opts)))]
+      (assertions
+        {:before         before
+         :before-methods (mapv :method @before-calls)
+         :after          after
+         :after-methods  (mapv :method @after-calls)}
+        => {:before
+            {:ol.protocol53/error
+             {:type       :deadline-exceeded
+              :message    "Deadline exceeded during GoDaddy request"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unchanged
+              :retryable? false}}
+            :before-methods [:get]
+            :after
+            {:ol.protocol53/error
+             {:type       :deadline-exceeded
+              :message    "Deadline exceeded during GoDaddy request"
+              :operation  :append-records
+              :provider   :godaddy
+              :zone       "example.com."
+              :zone-state :unknown
+              :retryable? false}}
+            :after-methods  [:get :patch]})))
 
   (behavior "rejects malformed JSON, page shapes, and Record fields"
     (let [outcome (fn [body]

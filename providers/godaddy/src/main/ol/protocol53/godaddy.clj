@@ -14,6 +14,7 @@
 
 (def ^:private base-url "https://api.godaddy.com")
 (def ^:private max-page-size 500)
+(def ^:private minimum-ttl 600)
 
 (defn- fail!
   ([type message retryable?]
@@ -25,24 +26,36 @@
                     ::retryable retryable?}
                    cause))))
 
+(defn- invalid-record! []
+  (fail! :invalid-record "Invalid GoDaddy record data" false))
+
 (defn- invalid-response! []
   (fail! :provider-response "GoDaddy returned an invalid response" false))
 
-(defn- operation-outcome [operation result-key zone f]
+(defn- operation-outcome [operation result-key zone mutation? f]
   (try
     {:ol.protocol53/result {result-key (f)}}
     (catch clojure.lang.ExceptionInfo cause
       (if-not (::failure (ex-data cause))
         (throw cause)
-        (let [{type      ::type
-               retryable ::retryable} (ex-data cause)]
+        (let [{type       ::type
+               retryable  ::retryable
+               zone-state ::zone-state} (ex-data cause)]
           {:ol.protocol53/error
-           {:type       type
-            :message    (ex-message cause)
-            :operation  operation
-            :provider   :godaddy
-            :zone       zone
-            :retryable? retryable}})))))
+           (cond-> {:type       type
+                    :message    (ex-message cause)
+                    :operation  operation
+                    :provider   :godaddy
+                    :retryable? retryable}
+             zone (assoc :zone zone)
+             mutation? (assoc :zone-state (or zone-state :unchanged)))})))))
+
+(defn- zone-unknown [cause]
+  (if (::failure (ex-data cause))
+    (ex-info (ex-message cause)
+             (assoc (ex-data cause) ::zone-state :unknown)
+             cause)
+    cause))
 
 (defn- timeout-millis [operation-deadline]
   (let [^Duration remaining (deadline/remaining operation-deadline)]
@@ -59,54 +72,61 @@
       (str/replace #"\.+$" "")
       (.toLowerCase Locale/ROOT)))
 
-(defn- request! [provider operation-deadline zone offset]
+(defn- records-path [zone]
+  (str "/v1/domains/" (normalized-zone zone) "/records"))
+
+(defn- request!
+  [provider operation-deadline {:keys [body method mutation? path query]}]
   (let [timeout (timeout-millis operation-deadline)]
     (when-not (pos? timeout)
       (fail! :deadline-exceeded
              "Deadline exceeded during GoDaddy request"
              false))
-    (let [headers  (cond-> {"Accept"        "application/json"
-                            "Authorization" (str "sso-key "
-                                                 (:api-key provider)
-                                                 ":"
-                                                 (:api-secret provider))}
-                     (:shopper-id provider) (assoc "X-Shopper-Id"
-                                                   (:shopper-id provider)))
-          request  (cond-> {:uri          (str base-url
-                                               "/v1/domains/"
-                                               (normalized-zone zone)
-                                               "/records")
-                            :method       :get
-                            :headers      headers
-                            :query-params {:offset offset
-                                           :limit  max-page-size}
-                            :timeout      timeout
-                            :throw        false}
-                     (:http-client provider) (assoc :client (:http-client provider)))
-          response (try
-                     (http/request request)
-                     (catch InterruptedException cause
-                       (.interrupt (Thread/currentThread))
-                       (fail! :provider-request
-                              "GoDaddy request failed"
-                              true
-                              cause))
-                     (catch IOException cause
-                       (fail! :provider-request
-                              "GoDaddy request failed"
-                              true
-                              cause))
-                     (catch Exception cause
-                       (fail! :provider-request
-                              "GoDaddy request failed"
-                              false
-                              cause)))]
-      (ensure-time! operation-deadline)
-      (when-not (and (map? response)
-                     (integer? (:status response))
-                     (<= 100 (:status response) 599))
-        (invalid-response!))
-      response)))
+    (let [headers (cond-> {"Accept"        "application/json"
+                           "Authorization" (str "sso-key "
+                                                (:api-key provider)
+                                                ":"
+                                                (:api-secret provider))}
+                    (:shopper-id provider) (assoc "X-Shopper-Id"
+                                                  (:shopper-id provider))
+                    (some? body) (assoc "Content-Type" "application/json"))
+          request (cond-> {:uri     (str base-url path)
+                           :method  method
+                           :headers headers
+                           :timeout timeout
+                           :throw   false}
+                    (seq query) (assoc :query-params query)
+                    (some? body) (assoc :body (json/write-str body))
+                    (:http-client provider) (assoc :client (:http-client provider)))]
+      (try
+        (let [response (try
+                         (http/request request)
+                         (catch InterruptedException cause
+                           (.interrupt (Thread/currentThread))
+                           (fail! :provider-request
+                                  "GoDaddy request failed"
+                                  true
+                                  cause))
+                         (catch IOException cause
+                           (fail! :provider-request
+                                  "GoDaddy request failed"
+                                  true
+                                  cause))
+                         (catch Exception cause
+                           (fail! :provider-request
+                                  "GoDaddy request failed"
+                                  false
+                                  cause)))]
+          (ensure-time! operation-deadline)
+          (when-not (and (map? response)
+                         (integer? (:status response))
+                         (<= 100 (:status response) 599))
+            (invalid-response!))
+          response)
+        (catch clojure.lang.ExceptionInfo cause
+          (throw (if mutation?
+                   (zone-unknown cause)
+                   cause)))))))
 
 (defn- request-failure! [status]
   (fail! :provider-request
@@ -216,7 +236,12 @@
 (defn- get-records* [provider operation-deadline zone]
   (loop [offset  0
          records []]
-    (let [response (request! provider operation-deadline zone offset)
+    (let [response (request! provider
+                             operation-deadline
+                             {:method :get
+                              :path   (records-path zone)
+                              :query  {:offset offset
+                                       :limit  max-page-size}})
           status   (:status response)]
       (cond
         (= status 200)
@@ -232,12 +257,154 @@
         :else
         (request-failure! status)))))
 
+(defn- strip-trailing-dot [target]
+  (when-not (and (string? target) (seq target))
+    (invalid-record!))
+  (if (or (= target ".") (not (str/ends-with? target ".")))
+    target
+    (subs target 0 (dec (count target)))))
+
+(defn- parsed-unsigned [value maximum]
+  (try
+    (let [value (Long/parseLong value)]
+      (when-not (<= 0 value maximum)
+        (invalid-record!))
+      value)
+    (catch NumberFormatException _
+      (invalid-record!))))
+
+(defn- mx-fields [data]
+  (if-let [[_ priority target] (re-matches #"^(\d+)\s+(\S+)$" data)]
+    {:data     (strip-trailing-dot target)
+     :priority (parsed-unsigned priority 65535)}
+    (invalid-record!)))
+
+(defn- srv-fields [name data]
+  (if-let [[_ service protocol subname]
+           (re-matches #"^_([^.\s]+)\._([^.\s]+)(?:\.(.+))?$" name)]
+    (if-let [[_ priority weight port target]
+             (re-matches #"^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)$" data)]
+      (let [port (parsed-unsigned port 65535)]
+        (when (zero? port)
+          (invalid-record!))
+        {:data     (strip-trailing-dot target)
+         :name     (or subname "@")
+         :port     port
+         :priority (parsed-unsigned priority 65535)
+         :protocol (str "_" protocol)
+         :service  (str "_" service)
+         :weight   (parsed-unsigned weight 65535)})
+      (invalid-record!))
+    (invalid-record!)))
+
+(defn- record-payload [record zone]
+  (let [{:keys [data name ttl type]} record
+        name (relative-name name zone)
+        type (canonical-type type)
+        common {:data data
+                :name name
+                :ttl  (max minimum-ttl ttl)
+                :type type}]
+    (when (or (str/blank? name) (str/blank? type))
+      (invalid-record!))
+    (case type
+      ("CNAME" "NS")
+      (assoc common :data (strip-trailing-dot data))
+
+      "MX"
+      (merge common (mx-fields data))
+
+      "SRV"
+      (merge common (srv-fields name data))
+
+      common)))
+
+(defn- rrset-key [record]
+  [(.toLowerCase ^String (:name record) Locale/ROOT)
+   (canonical-type (:type record))])
+
+(defn- records-minus [records previous]
+  (first
+   (reduce (fn [[added counts] record]
+             (if (pos? (get counts record 0))
+               [added (update counts record dec)]
+               [(conj added record) counts]))
+           [[] (frequencies previous)]
+           records)))
+
+(defn- missing-additions [payloads desired existing]
+  (first
+   (reduce (fn [[additions counts] [payload record]]
+             (if (pos? (get counts record 0))
+               [additions (update counts record dec)]
+               [(conj additions payload) counts]))
+           [[] (frequencies existing)]
+           (map vector payloads desired))))
+
+(defn- records-in-rrsets [records desired]
+  (let [selected (set (map rrset-key desired))]
+    (filterv #(contains? selected (rrset-key %)) records)))
+
+(defn- checked-mutation-response! [response]
+  (when-not (#{200 204} (:status response))
+    (request-failure! (:status response)))
+  (let [body (:body response)]
+    (when-not (or (nil? body)
+                  (and (string? body) (str/blank? body)))
+      (try
+        (json/read-str body)
+        (catch Exception cause
+          (fail! :provider-response
+                 "GoDaddy returned malformed JSON"
+                 false
+                 cause)))))
+  nil)
+
+(defn- add-records! [provider operation-deadline zone payloads]
+  (let [response (request! provider
+                           operation-deadline
+                           {:body      payloads
+                            :method    :patch
+                            :mutation? true
+                            :path      (records-path zone)})]
+    (try
+      (checked-mutation-response! response)
+      (catch clojure.lang.ExceptionInfo cause
+        (throw (zone-unknown cause))))))
+
+(defn- append-records* [provider operation-deadline zone records]
+  (let [payloads  (mapv #(record-payload % zone) records)
+        desired   (mapv #(portable-record % zone) payloads)
+        existing  (get-records* provider operation-deadline zone)
+        additions (missing-additions payloads desired existing)]
+    (if (empty? additions)
+      []
+      (do
+        (add-records! provider operation-deadline zone additions)
+        (try
+          (let [stored (get-records* provider operation-deadline zone)]
+            (records-minus (records-in-rrsets stored desired)
+                           (records-in-rrsets existing desired)))
+          (catch clojure.lang.ExceptionInfo cause
+            (throw (zone-unknown cause))))))))
+
+(defn- mutation-outcome [operation zone f]
+  (operation-outcome operation :records zone true f))
+
 (defrecord Provider [api-key api-secret shopper-id http-client]
   protocols/RecordGetter
   (-get-records! [this zone opts]
     (operation-outcome
-     :get-records :records zone
-     #(get-records* this (:deadline opts) zone))))
+     :get-records :records zone false
+     #(get-records* this (:deadline opts) zone)))
+
+  protocols/RecordAppender
+  (-append-records! [this zone records opts]
+    (if (empty? records)
+      {:ol.protocol53/result {:records []}}
+      (mutation-outcome
+       :append-records zone
+       #(append-records* this (:deadline opts) zone records)))))
 
 (def ^:private ^String redacted-provider
   (str "#ol.protocol53.godaddy.Provider"
