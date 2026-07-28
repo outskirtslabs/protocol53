@@ -89,7 +89,8 @@
                    (api-record "V6" 600 "AAAA" "2001:db8::1")
                    (api-record "WWW.Example.COM." 600 "CNAME" "target.example.net")
                    (api-record "txt" 600 "TXT" "")
-                   (api-record "caa" 600 "CAA" "0 issue \"letsencrypt.org\"")
+                   (api-record "caa" 600 "CAA" "letsencrypt.org"
+                               {:flags 0 :tag "issue"})
                    (api-record "@" 900 "MX" "mail.example.net" {:priority 10})
                    (api-record "delegated" 600 "NS" "ns1.example.net")
                    (api-record "VoIP" 600 "SRV" "service.example.net"
@@ -287,6 +288,8 @@
   (behavior "converts structured Records in one successful batch"
     (let [calls  (atom [])
           stored [(api-record "@" 600 "MX" "mail.example.net" {:priority 10})
+                  (api-record "caa" 600 "CAA" "initial.example.com"
+                              {:flags 128 :tag "issue"})
                   (api-record "voip" 600 "SRV" "service.example.net"
                               {:port     5060
                                :priority 20
@@ -302,6 +305,8 @@
                   "example.com."
                   [{:name "@"                    :ttl 300 :type "MX"
                     :data "10 mail.example.net."}
+                   {:name "caa" :ttl 300 :type "CAA"
+                    :data "128 issue \"initial.example.com\""}
                    {:name "_SIP._TCP.VoIP.Example.COM."    :ttl 300 :type "srv"
                     :data "20 5 5060 service.example.net."}]
                   (opts))]
@@ -310,6 +315,8 @@
         => {:ol.protocol53/result
             {:records [{:name "@"                    :ttl 600 :type "MX"
                         :data "10 mail.example.net."}
+                       {:name "caa" :ttl 600 :type "CAA"
+                        :data "128 issue \"initial.example.com\""}
                        {:name "_sip._tcp.voip"                 :ttl 600 :type "SRV"
                         :data "20 5 5060 service.example.net."}]}}
         (second @calls)
@@ -325,6 +332,12 @@
                                  :priority 10
                                  :ttl      600
                                  :type     "MX"}
+                                {:data  "initial.example.com"
+                                 :flags 128
+                                 :name  "caa"
+                                 :tag   "issue"
+                                 :ttl   600
+                                 :type  "CAA"}
                                 {:data     "service.example.net"
                                  :name     "voip"
                                  :port     5060
@@ -372,9 +385,14 @@
                    {:name "mail" :ttl 600 :type "MX" :data "malformed"}])
          (outcome [{:name "voip" :ttl 600 :type "SRV"
                     :data "20 5 5060 service.example.net."}])
+         (outcome [{:name "caa" :ttl 600 :type "CAA" :data "malformed"}])
+         (outcome [{:name "caa" :ttl 600 :type "CAA"
+                    :data "256 issue \"ca.example.com\""}])
+         (outcome [{:name "caa" :ttl 600 :type "CAA"
+                    :data "0 issue-wild \"ca.example.com\""}])
          (outcome [{:name " " :ttl 600 :type "A" :data "192.0.2.1"}])
          (outcome [{:name "www" :ttl 600 :type " " :data "192.0.2.1"}])]
-        => [invalid invalid invalid invalid]
+        => [invalid invalid invalid invalid invalid invalid invalid]
         @calls => [])))
 
   (behavior "classifies every Append uncertainty boundary"
@@ -495,6 +513,7 @@
 
   (behavior "sets complete RRsets in first-appearance order and returns Stored Records"
     (let [calls        (atom [])
+          unrelated    (api-record "keep" 600 "TXT" "unrelated")
           stored-a     [(api-record "www" 600 "A" "192.0.2.1")
                         (api-record "www" 1200 "A" "192.0.2.2")]
           existing-srv [(api-record "voip" 1800 "SRV" "ldap.example.net"
@@ -518,12 +537,12 @@
                         (first existing-srv)]
           stored-mx    [(api-record "@" 1200 "MX" "mail.example.net"
                                     {:priority 10})]
-          client       (scripted-client [(response existing-srv)
+          client       (scripted-client [(response (conj existing-srv unrelated))
                                          (response 204 "")
                                          (response 200 {})
                                          (response 204 "")
                                          (response stored-a)
-                                         (response stored-srv)
+                                         (response (conj stored-srv unrelated))
                                          (response stored-mx)]
                                         calls)
           result       (p53/set-records!
@@ -552,7 +571,7 @@
                         :data "10 mail.example.net."}]}}
         @calls
         => [{:method            :get
-             :path              "/v1/domains/example.com/records/SRV/voip"
+             :path              "/v1/domains/example.com/records"
              :query             {"offset" "0" "limit" "500"}
              :accept            "application/json"
              :authorization     "sso-key api-key:api-secret"
@@ -616,7 +635,7 @@
              :shopper-id        nil
              :timeout-positive? true}
             {:method            :get
-             :path              "/v1/domains/example.com/records/SRV/voip"
+             :path              "/v1/domains/example.com/records"
              :query             {"offset" "0" "limit" "500"}
              :accept            "application/json"
              :authorization     "sso-key api-key:api-secret"
@@ -1134,6 +1153,9 @@
          (outcome {})
          (outcome [{:name "www" :type "A" :data "192.0.2.1"}])
          (outcome [(api-record "www" -1 "A" "192.0.2.1")])
+         (outcome [(api-record "caa" 600 "CAA" "letsencrypt.org")])
+         (outcome [(api-record "caa" 600 "CAA" "letsencrypt.org"
+                               {:flags 256 :tag "issue"})])
          (outcome [(api-record "@" 600 "MX" "mail.example.net" {:priority "ten"})])
          (outcome [(api-record "@" 600 "MX" "" {:priority 10})])
          (outcome [(api-record "voip" 600 "SRV" "service.example.net"
@@ -1145,6 +1167,8 @@
               :provider   :godaddy
               :zone       "example.com."
               :retryable? false}}
+            invalid
+            invalid
             invalid
             invalid
             invalid

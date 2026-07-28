@@ -197,9 +197,21 @@
           :else (str prefix "." name)))
       name)))
 
+(defn- portable-caa-data [{:keys [data flags tag]}]
+  (when-not (and (string? data)
+                 (integer? flags)
+                 (<= 0 flags 255)
+                 (string? tag)
+                 (re-matches #"[A-Za-z0-9]+" tag))
+    (invalid-response!))
+  (str flags " " tag " " (json/write-str data)))
+
 (defn- portable-data [record]
   (let [{:keys [data port priority type weight]} record]
     (case type
+      "CAA"
+      (portable-caa-data record)
+
       ("CNAME" "NS")
       (portable-target data)
 
@@ -282,6 +294,27 @@
     (catch NumberFormatException _
       (invalid-record!))))
 
+(defn- parsed-caa-value [value]
+  (if (str/starts-with? value "\"")
+    (let [value (try
+                  (json/read-str value)
+                  (catch Exception _
+                    nil))]
+      (when-not (string? value)
+        (invalid-record!))
+      value)
+    value))
+
+(defn- caa-fields [data]
+  (if-let [[_ flags tag value]
+           (when (string? data)
+             (re-matches #"^(\d+)\s+([A-Za-z0-9]+)\s+(.+)$"
+                         (str/trim data)))]
+    {:data  (parsed-caa-value value)
+     :flags (parsed-unsigned flags 255)
+     :tag   tag}
+    (invalid-record!)))
+
 (defn- mx-fields [data]
   (if-let [[_ priority target] (re-matches #"^(\d+)\s+(\S+)$" data)]
     {:data     (strip-trailing-dot target)
@@ -317,6 +350,9 @@
     (when (or (str/blank? name) (str/blank? type))
       (invalid-record!))
     (case type
+      "CAA"
+      (merge common (caa-fields data))
+
       ("CNAME" "NS")
       (assoc common :data (strip-trailing-dot data))
 
@@ -426,32 +462,34 @@
         (invalid-response!)
         (throw cause)))))
 
+(defn- records-in-replacement-scope [records zone replacement-scope]
+  (filterv
+   (fn [record]
+     (let [payload (stored-record-payload record zone)]
+       (= replacement-scope [(:name payload) (:type payload)])))
+   records))
+
 (defn- complete-set-plan! [provider operation-deadline zone plan]
   (mapv
    (fn [{:keys [desired desired-keys name type] :as action}]
      (if-not (= "SRV" type)
        (assoc action :expected desired)
-       (let [existing (get-records-at-path*
-                       provider
-                       operation-deadline
-                       zone
-                       (rrset-path zone type name))
-             entries  (mapv (fn [record]
-                              {:payload (stored-record-payload record zone)
-                               :record  record})
-                            existing)]
-         (when-not (every? #(= [name type]
-                               [(:name (:payload %)) (:type (:payload %))])
-                           entries)
-           (invalid-response!))
-         (let [preserved (filterv #(not (contains? desired-keys
-                                                   (rrset-key (:record %))))
-                                  entries)]
-           (-> action
-               (update :body into
-                       (map #(dissoc (:payload %) :name :type) preserved))
-               (assoc :expected
-                      (into desired (map :record preserved))))))))
+       (let [existing  (records-in-replacement-scope
+                        (get-records* provider operation-deadline zone)
+                        zone
+                        [name type])
+             entries   (mapv (fn [record]
+                               {:payload (stored-record-payload record zone)
+                                :record  record})
+                             existing)
+             preserved (filterv #(not (contains? desired-keys
+                                                 (rrset-key (:record %))))
+                                entries)]
+         (-> action
+             (update :body into
+                     (map #(dissoc (:payload %) :name :type) preserved))
+             (assoc :expected
+                    (into desired (map :record preserved)))))))
    plan))
 
 (defn- execute-mutation-plan!
@@ -483,11 +521,16 @@
     (try
       (into []
             (mapcat (fn [{:keys [desired-keys expected name type]}]
-                      (let [stored (get-records-at-path*
-                                    provider
-                                    operation-deadline
-                                    zone
-                                    (rrset-path zone type name))]
+                      (let [stored (if (= "SRV" type)
+                                     (records-in-replacement-scope
+                                      (get-records* provider operation-deadline zone)
+                                      zone
+                                      [name type])
+                                     (get-records-at-path*
+                                      provider
+                                      operation-deadline
+                                      zone
+                                      (rrset-path zone type name)))]
                         (when-not (= (frequencies (map #(dissoc % :ttl) expected))
                                      (frequencies (map #(dissoc % :ttl) stored)))
                           (invalid-response!))

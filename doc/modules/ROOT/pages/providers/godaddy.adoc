@@ -1,8 +1,8 @@
 = GoDaddy provider
 
-The https://godaddy.com[GoDaddy] provider reads DNS Records through GoDaddy
-Domains API v1. It implements Protocol53 Get Records and deliberately does not
-implement Zone listing.
+The https://godaddy.com[GoDaddy] provider implements Protocol53 Get, Append,
+Set, and Delete Records with GoDaddy Domains API v1. It deliberately omits Zone
+listing; callers must supply the Zone they intend to manage.
 
 == Installation
 
@@ -12,7 +12,7 @@ Until the first release, use the provider's Git coordinate:
 ----
 {:deps {com.outskirtslabs/protocol53-godaddy
         {:git/url "https://github.com/outskirtslabs/protocol53.git"
-         :git/sha "91299744f187efe3c7c8963d11cdb760ea56b8ed"
+         :git/sha "f1365af9792b3d4b31a701d6705681b0a03538e1"
          :deps/root "providers/godaddy"}}}
 ----
 
@@ -20,8 +20,9 @@ The provider module also brings in the shared Protocol53 API.
 
 == Authentication
 
-Create a GoDaddy production API key and secret. Supply them separately; the
-provider constructs GoDaddy's `sso-key` authorization header internally.
+Create a production API key and secret through GoDaddy's developer portal.
+Supply them separately; the provider constructs the `sso-key` authorization
+header internally.
 
 [source,clojure]
 ----
@@ -46,16 +47,118 @@ also supply `:shopper-id`. The provider sends it as `X-Shopper-Id`.
 Pass a caller-built `java.net.http.HttpClient` as `:http-client` when advanced
 HTTP policy requires Java interop.
 
-== Record Behavior
+== Record behavior
 
-Get Records accepts Zone Names with or without a trailing dot and returns
-lowercase Zone-relative Record Names, using `@` for the Zone Apex. Record types
-are uppercase. CNAME, NS, MX, and SRV targets are returned as absolute names;
-MX and SRV fields are assembled into Protocol53's portable RDATA form.
+The provider accepts Zone Names with or without a trailing dot. It returns
+lowercase Zone-relative Record Names and uses `@` for the Zone Apex. Record
+types are uppercase.
 
-The Provider requests at most 500 Records per page and advances GoDaddy's
-`offset` by the number of Records received. A caller's operation deadline is
-shared by every page request.
+GoDaddy Domains API v1 exposes A, AAAA, CAA, CNAME, MX, NS, SOA, SRV, and TXT.
+It does not expose HTTPS or SVCB. The provider translates CNAME and NS targets
+to portable absolute names. It combines GoDaddy's separate CAA `flags`, `tag`,
+and `data` fields and its separate MX and SRV fields into Protocol53 RDATA
+strings, reversing those conversions on writes. GoDaddy's live v1 CAA fields
+are required even though the supplied v1 schema omits them.
 
-GoDaddy Domains API v1 does not expose HTTPS or SVCB Records. This Provider
-also omits ZoneLister; callers must already know the Zone they intend to read.
+Get requests the complete Zone in pages of at most 500 Records and advances
+each offset by the number of Records received. Every page shares the caller's
+operation deadline.
+
+GoDaddy enforces a 600-second minimum TTL. The provider raises lower Record
+TTLs—and explicit lower Delete selector TTLs—to 600. Append and Set reread
+GoDaddy state and return the effective Stored Records.
+
+Append uses the v1 preserving batch operation and leaves existing Records
+intact. Set replaces each addressed complete RRset. Delete resolves portable
+selectors against a Zone snapshot, rewrites a partially selected replacement
+scope with every survivor, and deletes the scope only when no members survive.
+Several portable SRV RRsets can share one v1 type-and-base-name replacement
+scope; Set and Delete preserve unaddressed service/protocol siblings. GoDaddy's
+filtered SRV GET expects the full portable owner instead of that mutation base
+name, so Set reads the full Zone and filters SRV preservation and recovery
+state locally.
+
+== Concurrency and failure recovery
+
+GoDaddy v1 provides no conditional Record writes. Coordinate concurrent
+Mutations of the same RRset across Provider instances and processes. A
+per-instance Provider lock cannot protect those other writers.
+
+Protocol53 reports planning failures before dispatch with an unchanged Zone.
+After a write may have reached GoDaddy, it reports the Zone state as unknown
+and stops the remaining plan. The provider neither retries ambiguous writes
+nor attempts rollback. Read the affected Records and reconcile them before
+retrying an unknown Mutation.
+
+== Read-only live validation
+
+Before authorizing live Mutations, validate the dedicated Zone with a safe
+full-Zone read. This call follows GoDaddy's v1 pagination route and changes no
+Records:
+
+[source,clojure]
+----
+(require '[ol.protocol53 :as protocol53])
+(import '[java.time Duration])
+
+(protocol53/get-records!
+ dns
+ "disposable.example."
+ {:timeout (Duration/ofSeconds 30)})
+----
+
+A failed read blocks the destructive lifecycle run. The provider never lists
+account domains to discover a test Zone.
+
+== Integration tests
+
+[WARNING]
+====
+Run the lifecycle suite only against a dedicated disposable Zone. It creates,
+replaces, and deletes DNS Records whose effective owner starts with
+`p53test-`. The suite confines Mutations to those reserved owners and cleans
+them after every phase.
+====
+
+Set these variables in the process environment or the repository `.env` file.
+Process values take precedence over `.env` values. The test wrapper never
+prints their values.
+
+[cols="1,1,3", options="header"]
+|===
+| Variable
+| Required
+| Description
+
+| `GODADDY_API_KEY`
+| yes
+| Production API key with access to the dedicated test Zone.
+
+| `GODADDY_API_SECRET`
+| yes
+| Secret paired with the API key.
+
+| `GODADDY_DOMAIN`
+| yes
+| Dedicated disposable Zone, with or without a trailing dot.
+
+| `GODADDY_SHOPPER_ID`
+| no
+| Reseller shopper ID for the dedicated Zone.
+|===
+
+Run only the GoDaddy lifecycle suite from the repository root:
+
+[source,shell]
+----
+bb test:integration --provider godaddy
+----
+
+The suite remains pending when the key, secret, or Zone is absent. It uses the
+shared Protocol53 lifecycle while omitting HTTPS, SVCB, and NS. The Provider's
+lack of `ZoneLister` automatically omits only the Zone-listing phase. Shared
+comparisons ignore TTL because GoDaddy raises 300-second fixtures to 600;
+provider-specific tests still assert the exact 600-second policy.
+
+The integration suite stays outside ordinary test, QA, and CI runs. Never run
+two lifecycle suites concurrently against the same Zone.

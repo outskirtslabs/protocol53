@@ -21,6 +21,7 @@
                                "providers/desec/src/test-integration"
                                "providers/godaddy/src/main"
                                "providers/godaddy/src/test"
+                               "providers/godaddy/src/test-integration"
                                "providers/porkbun/src/main"
                                "providers/porkbun/src/test"
                                "providers/porkbun/src/test-integration"
