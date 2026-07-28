@@ -1,0 +1,78 @@
+= ol.protocol53.godaddy
+
+
+GoDaddy DNS provider for protocol53.
+
+[#--GT-Provider]
+== ->Provider
+
+
+
+
+[source,clojure]
+----
+(->Provider api-key api-secret shopper-id http-client)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L235-L240[source,window=_blank]
+
+'''
+
+[#Provider]
+== Provider
+
+
+
+
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L235-L240[source,window=_blank]
+
+'''
+
+[#map--GT-Provider]
+== map->Provider
+
+
+
+
+[source,clojure]
+----
+(map->Provider m)
+----
+
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L235-L240[source,window=_blank]
+
+'''
+
+[#provider]
+== provider
+
+
+
+
+[source,clojure]
+----
+(provider config)
+----
+
+Returns a GoDaddy provider from `config`.
+
+Options:
+
+[options="header"]
+|===
+| key | description
+| `:api-key` | GoDaddy API key.
+| `:api-secret` | GoDaddy API secret paired with `:api-key`.
+| `:shopper-id` | Optional reseller shopper ID sent as `X-Shopper-Id`.
+| `:http-client` | Optional `java.net.http.HttpClient` for advanced HTTP policy.
+|===
+
+[.api-source]
+link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L257-L270[source,window=_blank]

@@ -31,6 +31,13 @@
     "Provider" "Provider",
     "map->Provider" "map--GT-Provider",
     "provider" "provider"}},
+  "ol.protocol53.godaddy"
+  {:page "api/ol-protocol53-godaddy.adoc",
+   :vars
+   {"->Provider" "--GT-Provider",
+    "Provider" "Provider",
+    "map->Provider" "map--GT-Provider",
+    "provider" "provider"}},
   "ol.protocol53.http"
   {:page "api/ol-protocol53-http.adoc", :vars {"request" "request"}},
   "ol.protocol53.malli"

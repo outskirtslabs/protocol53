@@ -19,6 +19,8 @@
                                "providers/desec/src/main"
                                "providers/desec/src/test"
                                "providers/desec/src/test-integration"
+                               "providers/godaddy/src/main"
+                               "providers/godaddy/src/test"
                                "providers/porkbun/src/main"
                                "providers/porkbun/src/test"
                                "providers/porkbun/src/test-integration"
@@ -61,11 +63,12 @@
              {:source-paths ["api/src/main"
                              "providers/cloudflare/src/main"
                              "providers/desec/src/main"
+                             "providers/godaddy/src/main"
                              "providers/porkbun/src/main"
                              "testkit/src/main"]})
             (let [pages-dir "doc/modules/ROOT/pages/providers"]
               (fs/create-dirs pages-dir)
-              (doseq [provider ["cloudflare" "desec" "porkbun"]]
+              (doseq [provider ["cloudflare" "desec" "godaddy" "porkbun"]]
                 (fs/copy (fs/path "providers" provider "README.adoc")
                          (fs/path pages-dir (str provider ".adoc"))
                          {:replace-existing true}))))}

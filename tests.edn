@@ -17,6 +17,9 @@
    {:id                  :desec
     :kaocha/source-paths ["providers/desec/src/main"]
     :kaocha/test-paths   ["providers/desec/src/test"]}
+   {:id                  :godaddy
+    :kaocha/source-paths ["providers/godaddy/src/main"]
+    :kaocha/test-paths   ["providers/godaddy/src/test"]}
    {:id                  :porkbun
     :kaocha/source-paths ["providers/porkbun/src/main"]
     :kaocha/test-paths   ["providers/porkbun/src/test"]}

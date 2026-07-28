@@ -1,0 +1,61 @@
+= GoDaddy provider
+
+The https://godaddy.com[GoDaddy] provider reads DNS Records through GoDaddy
+Domains API v1. It implements Protocol53 Get Records and deliberately does not
+implement Zone listing.
+
+== Installation
+
+Until the first release, use the provider's Git coordinate:
+
+[source,clojure]
+----
+{:deps {com.outskirtslabs/protocol53-godaddy
+        {:git/url "https://github.com/outskirtslabs/protocol53.git"
+         :git/sha "4a0ad834256d7e1e1a6a95936ea5e7ca14f13988"
+         :deps/root "providers/godaddy"}}}
+----
+
+The provider module also brings in the shared Protocol53 API.
+
+== Authentication
+
+Create a GoDaddy production API key and secret. Supply them separately; the
+provider constructs GoDaddy's `sso-key` authorization header internally.
+
+[source,clojure]
+----
+(require '[ol.protocol53.godaddy :as godaddy])
+
+(def dns
+  (godaddy/provider {:api-key    "key"
+                     :api-secret "secret"}))
+----
+
+A reseller managing a Zone outside the reseller account's normal scope can
+also supply `:shopper-id`. The provider sends it as `X-Shopper-Id`.
+
+[source,clojure]
+----
+(def dns
+  (godaddy/provider {:api-key    "key"
+                     :api-secret "secret"
+                     :shopper-id "shopper-id"}))
+----
+
+Pass a caller-built `java.net.http.HttpClient` as `:http-client` when advanced
+HTTP policy requires Java interop.
+
+== Record Behavior
+
+Get Records accepts Zone Names with or without a trailing dot and returns
+lowercase Zone-relative Record Names, using `@` for the Zone Apex. Record types
+are uppercase. CNAME, NS, MX, and SRV targets are returned as absolute names;
+MX and SRV fields are assembled into Protocol53's portable RDATA form.
+
+The Provider requests at most 500 Records per page and advances GoDaddy's
+`offset` by the number of Records received. A caller's operation deadline is
+shared by every page request.
+
+GoDaddy Domains API v1 does not expose HTTPS or SVCB Records. This Provider
+also omits ZoneLister; callers must already know the Zone they intend to read.

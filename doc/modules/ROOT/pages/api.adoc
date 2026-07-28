@@ -1,6 +1,6 @@
 = API Reference
 
-This release publishes 11 namespaces.
+This release publishes 12 namespaces.
 
 [cols="1,3",options="header",stripes=hover]
 |===
@@ -17,6 +17,9 @@ This release publishes 11 namespaces.
 
 | xref:api/ol-protocol53-desec.adoc[`ol.protocol53.desec`]
 | deSEC DNS provider for protocol53.
+
+| xref:api/ol-protocol53-godaddy.adoc[`ol.protocol53.godaddy`]
+| GoDaddy DNS provider for protocol53.
 
 | xref:api/ol-protocol53-http.adoc[`ol.protocol53.http`]
 | Synchronous HTTP transport for bundled protocol53 providers.

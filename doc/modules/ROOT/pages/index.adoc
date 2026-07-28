@@ -30,6 +30,7 @@ Project status: *https://docs.outskirtslabs.com/open-source-vital-signs#experime
 
 * https://docs.outskirtslabs.com/ol.protocol53/next/providers/cloudflare[Cloudflare]
 * https://docs.outskirtslabs.com/ol.protocol53/next/providers/desec[deSEC]
+* https://docs.outskirtslabs.com/ol.protocol53/next/providers/godaddy[GoDaddy]
 * https://docs.outskirtslabs.com/ol.protocol53/next/providers/porkbun[Porkbun]
 
 

@@ -2,5 +2,6 @@
 * Providers
 ** xref:providers/cloudflare.adoc[Cloudflare]
 ** xref:providers/desec.adoc[deSEC]
+** xref:providers/godaddy.adoc[GoDaddy]
 ** xref:providers/porkbun.adoc[Porkbun]
 include::partial$api-nav.adoc[]
