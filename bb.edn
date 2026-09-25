@@ -2,16 +2,19 @@
          {:git/url "https://github.com/outskirtslabs/bb-tasks"
           :git/sha "9dbc6d77384b51ffde69007e98a0420b3cf6a0a7"}}
  :pods  {clj-kondo/clj-kondo {:version "2026.01.19"}}
- :paths []
+ :paths ["scripts"]
  :tasks {:requires
          ([babashka.fs :as fs]
           [babashka.tasks :refer [shell]]
           [clojure.pprint :refer [print-table]]
           [clojure.string :as str]
           [ol.bb-tasks.gen-docs :as gen-docs]
-          [ol.bb-tasks.publish-clojars :as publish-clojars])
+          [ol.bb-tasks.publish-clojars :as publish-clojars]
+          [ol.protocol53.release :as release])
 
-         :init (do (def paths ["api/src/main"
+         :init (do (def paths ["build.clj"
+                               "bb.edn"
+                               "api/src/main"
                                "api/src/test"
                                "providers/cloudflare/src/main"
                                "providers/cloudflare/src/test"
@@ -27,7 +30,22 @@
                                "providers/porkbun/src/test-integration"
                                "scripts"
                                "testkit/src/main"
-                               "testkit/src/test"]))
+                               "testkit/src/test"])
+                   (defn artifact-selection [default]
+                     (let [selection (if (seq *command-line-args*)
+                                       (mapv keyword *command-line-args*)
+                                       default)]
+                       (release/selected (release/modules ".") selection)
+                       selection))
+                   (defn build! [task selection]
+                     (shell "clojure" "-T:build" task ":artifacts" (pr-str selection)))
+                   (defn publish! [selection]
+                     (doseq [module (release/selected (release/modules ".") selection)]
+                       (release/deployable! module))
+                     (publish-clojars/publish!
+                      {:username (or (System/getenv "CLOJARS_USERNAME") "ramblurr")
+                       :token    (System/getenv "CLOJARS_PASSWORD")
+                       :command  ["clojure" "-T:build" "deploy" ":artifacts" (pr-str selection)]})))
 
          dev
          {:doc  "Start a local development server"
@@ -46,11 +64,14 @@
                       (do
                         (apply shell "cljfmt --quiet -v fix" paths)
                         (shell "sh" "-c"
-                               "cljfmt --config .cljfmt-deps.edn --quiet -v fix deps.edn providers/*/deps.edn")))}
+                               "cljfmt --config .cljfmt-deps.edn --quiet -v fix deps.edn api/deps.edn providers/*/deps.edn testkit/deps.edn")))}
 
          fmt:check
          {:doc  "Check code formatting without making changes"
-          :task (apply shell "cljfmt check " paths)}
+          :task (do
+                  (apply shell "cljfmt check" paths)
+                  (shell "sh" "-c"
+                         "cljfmt --config .cljfmt-deps.edn check deps.edn api/deps.edn providers/*/deps.edn testkit/deps.edn"))}
 
          deps-tree
          {:doc  "Show dependency tree"
@@ -59,20 +80,22 @@
          gen-docs
          {:doc "Generate all Antora documentation"
           :task
-          (do
+          (let [modules   (release/modules ".")
+                pages-dir "doc/modules/ROOT/pages"]
+            (fs/create-dirs (fs/path pages-dir "providers"))
+            (doseq [{:keys [id dir]} (rest modules)]
+              (fs/copy (fs/path dir "README.adoc")
+                       (fs/path pages-dir "providers" (str (name id) ".adoc"))
+                       {:replace-existing true}))
+            (spit (str (fs/path pages-dir "artifacts.adoc"))
+                  (str "= Artifact versions\n\n"
+                       "[cols=\"2,1,2\", options=\"header\"]\n|===\n| Maven artifact | Version | Release tag\n"
+                       (str/join "\n" (map (fn [{:keys [project tag]}]
+                                             (str "| `" (:name project) "` | `" (:version project) "` | `" tag "`"))
+                                           modules))
+                       "\n|===\n\nProviders bring in the API transitively. Provider and API versions can differ.\n"))
             (gen-docs/generate!
-             {:source-paths ["api/src/main"
-                             "providers/cloudflare/src/main"
-                             "providers/desec/src/main"
-                             "providers/godaddy/src/main"
-                             "providers/porkbun/src/main"
-                             "testkit/src/main"]})
-            (let [pages-dir "doc/modules/ROOT/pages/providers"]
-              (fs/create-dirs pages-dir)
-              (doseq [provider ["cloudflare" "desec" "godaddy" "porkbun"]]
-                (fs/copy (fs/path "providers" provider "README.adoc")
-                         (fs/path pages-dir (str provider ".adoc"))
-                         {:replace-existing true}))))}
+             {:source-paths (conj (vec (mapcat :src-dirs modules)) "testkit/src/main")}))}
 
          lint:copy-configs
          {:doc  "Copy clj-kondo configs from dependencies"
@@ -92,15 +115,52 @@
          {:doc     "Run CI checks: test, format check, and lint"
           :depends [test fmt:check lint]}
 
+         artifacts
+         {:doc  "List artifact coordinates, versions, tags, and changelogs"
+          :task (print-table
+                 (mapv (fn [{:keys [id project tag changelog]}]
+                         {:module id  :lib       (:name project) :version (:version project)
+                          :tag    tag :changelog changelog})
+                       (release/modules ".")))}
+
+         release-notes
+         {:doc  "Print one module's changelog entry: bb release-notes [api|provider]"
+          :task (let [selected (release/selected (release/modules ".") (artifact-selection :api))]
+                  (when-not (= 1 (count selected))
+                    (throw (ex-info "Select one artifact for release notes" {})))
+                  (print (release/release-notes (first selected))))}
+
+         versions:set
+         {:doc  "Set all module versions explicitly: bb versions:set 0.0.1"
+          :task (do
+                  (when-not (= 1 (count *command-line-args*))
+                    (throw (ex-info "Expected one release version" {})))
+                  (release/set-versions! "." (first *command-line-args*))
+                  (shell "sh" "-c"
+                         "cljfmt --config .cljfmt-deps.edn fix api/deps.edn providers/*/deps.edn"))}
+
          jar {:override-builtin true
-              :depends          [clean]
-              :doc              "Build an jar"
-              :task             (shell "clojure -T:build jar")}
+              :doc              "Build the API jar, or named modules"
+              :task             (build! "jar" (artifact-selection :api))}
+
+         jar:providers {:doc  "Build provider jars; optionally select provider names"
+                        :task (build! "jar" (artifact-selection :providers))}
+
+         jar:all {:doc  "Build all release jars"
+                  :task (build! "jar" :all)}
+
+         install:all {:doc  "Install all release jars locally, API first"
+                      :task (build! "install" :all)}
 
          clean {:override-builtin true
                 :doc              "Clean build artifacts"
                 :task             (shell "clojure -T:build clean")}
 
-         publish {:doc     "Publish the clojure sdk libs to clojars"
-                  :depends [jar]
-                  :task    (publish-clojars/publish!)}}}
+         publish {:doc  "Publish the API, or named modules, from their release tags"
+                  :task (publish! (artifact-selection :api))}
+
+         publish:providers {:doc  "Publish selected providers, default all, from their release tags"
+                            :task (publish! (artifact-selection :providers))}
+
+         publish:all {:doc  "Publish API then providers from their release tags"
+                      :task (publish! :all)}}}

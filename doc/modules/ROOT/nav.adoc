@@ -1,4 +1,5 @@
 * xref:index.adoc[Home]
+* xref:artifacts.adoc[Artifact versions]
 * Providers
 ** xref:providers/cloudflare.adoc[Cloudflare]
 ** xref:providers/desec.adoc[deSEC]

@@ -6,17 +6,10 @@ v1 API.
 
 == Installation
 
-Until the first release, use the provider's Git coordinate:
-
 [source,clojure]
 ----
-{:deps {com.outskirtslabs/protocol53-desec
-        {:git/url "https://github.com/outskirtslabs/protocol53.git"
-         :git/sha "4a0ad834256d7e1e1a6a95936ea5e7ca14f13988"
-         :deps/root "providers/desec"}}}
+{:deps {com.outskirtslabs/protocol53-desec {:mvn/version "0.0.1"}}}
 ----
-
-The provider module also brings in the shared Protocol53 API.
 
 == Authentication
 

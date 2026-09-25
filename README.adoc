@@ -36,14 +36,18 @@ Project status: *https://docs.outskirtslabs.com/open-source-vital-signs#experime
 
 == Installation
 
-Until the first release, use the API's Git coordinate:
+Add the provider you need; it includes the shared API transitively:
 
 [source,clojure]
 ----
-{:deps {com.outskirtslabs/protocol53
-        {:git/url "https://github.com/outskirtslabs/protocol53.git"
-         :git/sha "4a0ad834256d7e1e1a6a95936ea5e7ca14f13988"
-         :deps/root "api"}}}
+{:deps {com.outskirtslabs/protocol53-cloudflare {:mvn/version "0.0.1"}}}
+----
+
+For the API alone:
+
+[source,clojure]
+----
+{:deps {com.outskirtslabs/protocol53 {:mvn/version "0.0.1"}}}
 ----
 
 == Quick Start
@@ -95,6 +99,27 @@ A direct Clave adapter remains future work.
 
 * https://docs.outskirtslabs.com/ol.clave/next/[Clave documentation]
 * https://github.com/outskirtslabs/clave[Clave source code]
+
+== Development
+
+Run commands inside the Nix devshell:
+
+[source,shell]
+----
+bb qa
+bb artifacts
+bb jar:all
+bb gen-docs
+----
+
+Jars are written to `target/`. `bb jar` builds the API;
+`bb jar:providers cloudflare desec` builds selected providers.
+Module `deps.edn` files supply artifact metadata and versions.
+Local builds can package providers before the API exists on Clojars; deployment
+requires released Maven dependency coordinates and annotated artifact tags.
+
+Maintainers: follow the release workflow in `AGENTS.md`.
+
 
 == License
 

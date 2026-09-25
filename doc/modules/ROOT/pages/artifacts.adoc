@@ -1,0 +1,13 @@
+= Artifact versions
+
+[cols="2,1,2", options="header"]
+|===
+| Maven artifact | Version | Release tag
+| `com.outskirtslabs/protocol53` | `0.0.1` | `p53/v0.0.1`
+| `com.outskirtslabs/protocol53-cloudflare` | `0.0.1` | `p53-cloudflare/v0.0.1`
+| `com.outskirtslabs/protocol53-desec` | `0.0.1` | `p53-desec/v0.0.1`
+| `com.outskirtslabs/protocol53-godaddy` | `0.0.1` | `p53-godaddy/v0.0.1`
+| `com.outskirtslabs/protocol53-porkbun` | `0.0.1` | `p53-porkbun/v0.0.1`
+|===
+
+Providers bring in the API transitively. Provider and API versions can differ.

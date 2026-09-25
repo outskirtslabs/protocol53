@@ -118,6 +118,7 @@
         (f :not-a-deadline) =throws=> IllegalArgumentException)))
   (behavior "are validated by within?"
     (assertions
+      #_{:clj-kondo/ignore [:type-mismatch]}
       (deadline/within? :not-a-deadline (Duration/ofNanos 1))
       =throws=> IllegalArgumentException)))
 

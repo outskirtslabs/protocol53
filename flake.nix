@@ -23,7 +23,9 @@
         clj-helpers.lib.mkCljLib {
           inherit pkgs;
           name = "protocol53";
-          version = "0.0.0";
+          version = builtins.head (
+            builtins.match ''.*:version[[:space:]]+"([^"]+)".*'' (builtins.readFile ./api/deps.edn)
+          );
           src = ./.;
           prepAliases = [
             "dev"
