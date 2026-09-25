@@ -15,4 +15,6 @@
   :version "next",
   :prerelease true,
   :start-path "doc"},
- :repo {:url "https://github.com/outskirtslabs/protocol53"}}
+ :repo
+ {:url "https://github.com/outskirtslabs/protocol53",
+  :release-tag-prefix "p53/"}}
