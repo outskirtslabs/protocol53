@@ -44,4 +44,4 @@ retain ownership of the stream for every status. Exceptional statuses throw
 `ExceptionInfo` with the complete response as `ex-data`.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/http.clj#L200-L231[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53/http.clj#L200-L231[source,window=_blank]

@@ -1,7 +1,6 @@
 ---
 name: ol.protocol53
 title: ol.protocol53
-version: next
-prerelease: true
+version: '0.0.1'
 nav:
   - modules/ROOT/nav.adoc

@@ -1,6 +1,6 @@
 {:api-index/version 1,
  :component "ol.protocol53",
- :version "next",
+ :version "0.0.1",
  :namespaces
  {"ol.protocol53"
   {:page "api/ol-protocol53.adoc",

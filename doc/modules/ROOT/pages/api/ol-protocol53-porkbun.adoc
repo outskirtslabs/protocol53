@@ -16,7 +16,7 @@ Porkbun DNS provider for protocol53.
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L707-L742[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L707-L742[source,window=_blank]
 
 '''
 
@@ -29,7 +29,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L707-L742[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L707-L742[source,window=_blank]
 
 '''
 
@@ -46,7 +46,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L707-L742[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L707-L742[source,window=_blank]
 
 '''
 
@@ -74,4 +74,4 @@ Options:
 |===
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L756-L768[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/porkbun/src/main/ol/protocol53/porkbun.clj#L756-L768[source,window=_blank]

@@ -19,4 +19,4 @@ Loads assignments from `filename` into a string map.
 Returns an empty map when `filename` does not name an existing file.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/testkit/src/main/ol/protocol53/testkit/dotenv.clj#L36-L43[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/testkit/src/main/ol/protocol53/testkit/dotenv.clj#L36-L43[source,window=_blank]

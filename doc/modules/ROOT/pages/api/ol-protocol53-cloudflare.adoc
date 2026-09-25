@@ -16,7 +16,7 @@ Cloudflare DNS provider for protocol53.
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
 
 '''
 
@@ -29,7 +29,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
 
 '''
 
@@ -46,7 +46,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L643-L678[source,window=_blank]
 
 '''
 
@@ -74,4 +74,4 @@ Options:
 |===
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L680-L692[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/cloudflare/src/main/ol/protocol53/cloudflare.clj#L680-L692[source,window=_blank]

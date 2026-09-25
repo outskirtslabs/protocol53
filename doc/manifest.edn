@@ -12,7 +12,7 @@
  :docs
  {:component "ol.protocol53",
   :title "ol.protocol53",
-  :version "next",
-  :prerelease true,
+  :version "0.0.1",
+  :prerelease false,
   :start-path "doc"},
  :repo {:url "https://github.com/outskirtslabs/protocol53"}}

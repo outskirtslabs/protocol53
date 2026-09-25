@@ -37,7 +37,7 @@ Options:
 |===
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/testkit/src/main/ol/protocol53/testkit.clj#L256-L273[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/testkit/src/main/ol/protocol53/testkit.clj#L256-L273[source,window=_blank]
 
 '''
 
@@ -75,4 +75,4 @@ Options:
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/testkit/src/main/ol/protocol53/testkit.clj#L444-L477[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/testkit/src/main/ol/protocol53/testkit.clj#L444-L477[source,window=_blank]

@@ -53,7 +53,7 @@ Options:
 | `:deadline` | Process-local deadline for sharing an existing budget.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L85-L102[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53.clj#L85-L102[source,window=_blank]
 
 '''
 
@@ -82,7 +82,7 @@ Options:
 | `:deadline` | Process-local deadline for sharing an existing budget.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L104-L131[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53.clj#L104-L131[source,window=_blank]
 
 '''
 
@@ -112,7 +112,7 @@ Options:
 | `:deadline` | Process-local deadline for sharing an existing budget.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L133-L161[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53.clj#L133-L161[source,window=_blank]
 
 '''
 
@@ -142,7 +142,7 @@ Options:
 | `:deadline` | Process-local deadline for sharing an existing budget.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L163-L192[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53.clj#L163-L192[source,window=_blank]
 
 '''
 
@@ -171,4 +171,4 @@ Options:
 | `:deadline` | Process-local deadline for sharing an existing budget.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53.clj#L194-L210[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53.clj#L194-L210[source,window=_blank]

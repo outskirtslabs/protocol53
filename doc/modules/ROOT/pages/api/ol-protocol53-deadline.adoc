@@ -41,7 +41,7 @@ Returns a deadline that falls `duration` from now.
 ----
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/deadline.clj#L42-L53[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53/deadline.clj#L42-L53[source,window=_blank]
 
 '''
 
@@ -62,7 +62,7 @@ The value is a `java.time.Duration` that never goes negative; once the
 deadline has passed it is `Duration/ZERO`.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/deadline.clj#L55-L67[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53/deadline.clj#L55-L67[source,window=_blank]
 
 '''
 
@@ -80,7 +80,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/proto
 Returns `true` once `operation-deadline` has no time left.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/deadline.clj#L69-L72[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53/deadline.clj#L69-L72[source,window=_blank]
 
 '''
 
@@ -101,4 +101,4 @@ Use it to decide whether to start work that needs at least `duration` of
 budget. `duration` is a positive `java.time.Duration`.
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/api/src/main/ol/protocol53/deadline.clj#L74-L81[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/api/src/main/ol/protocol53/deadline.clj#L74-L81[source,window=_blank]

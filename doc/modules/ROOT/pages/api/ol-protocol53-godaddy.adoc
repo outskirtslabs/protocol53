@@ -16,7 +16,7 @@ GoDaddy DNS provider for protocol53.
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L624-L653[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L624-L653[source,window=_blank]
 
 '''
 
@@ -29,7 +29,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L624-L653[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L624-L653[source,window=_blank]
 
 '''
 
@@ -46,7 +46,7 @@ link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src
 
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L624-L653[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L624-L653[source,window=_blank]
 
 '''
 
@@ -75,4 +75,4 @@ Options:
 |===
 
 [.api-source]
-link:https://github.com/outskirtslabs/protocol53/blob/main/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L670-L683[source,window=_blank]
+link:https://github.com/outskirtslabs/protocol53/blob/docs/v0.0.1/providers/godaddy/src/main/ol/protocol53/godaddy.clj#L670-L683[source,window=_blank]
