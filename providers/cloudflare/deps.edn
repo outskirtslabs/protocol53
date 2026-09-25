@@ -1,5 +1,5 @@
 {:paths   ["src/main"]
- :deps    {com.outskirtslabs/protocol53 {:local/root "../../api/"}
+ :deps    {com.outskirtslabs/protocol53 {:mvn/version "0.0.1"}
            org.babashka/json            {:mvn/version "0.1.6"}}
  :aliases {:neil {:project {:name        com.outskirtslabs/protocol53-cloudflare
                             :url         "https://docs.outskirtslabs.com/ol.protocol53"
