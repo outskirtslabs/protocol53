@@ -6,7 +6,8 @@
  :tasks {:requires
          ([babashka.fs :as fs]
           [babashka.tasks :refer [shell]]
-          [clojure.pprint :refer [print-table]]
+          [clojure.edn :as edn]
+          [clojure.pprint :refer [pprint print-table]]
           [clojure.string :as str]
           [ol.bb-tasks.gen-docs :as gen-docs]
           [ol.bb-tasks.publish-clojars :as publish-clojars]
@@ -95,7 +96,13 @@
                                            modules))
                        "\n|===\n\nProviders bring in the API transitively. Provider and API versions can differ.\n"))
             (gen-docs/generate!
-             {:source-paths (conj (vec (mapcat :src-dirs modules)) "testkit/src/main")}))}
+             {:source-paths (conj (vec (mapcat :src-dirs modules)) "testkit/src/main")})
+            (let [manifest-file "doc/manifest.edn"
+                  prefix        (str (first (str/split (:tag (first modules)) (re-pattern "/"))) "/")]
+              (spit manifest-file
+                    (with-out-str
+                      (pprint (assoc-in (edn/read-string (slurp manifest-file))
+                                        [:repo :release-tag-prefix] prefix))))))}
 
          lint:copy-configs
          {:doc  "Copy clj-kondo configs from dependencies"
