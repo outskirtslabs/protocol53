@@ -6,11 +6,11 @@
                                com.outskirtslabs/protocol53-godaddy    {:local/root "providers/godaddy"}
                                com.outskirtslabs/protocol53-porkbun    {:local/root "providers/porkbun"}
                                com.outskirtslabs/protocol53-testkit    {:local/root "testkit"}
-                               com.cnuernber/charred                   {:mvn/version "1.041"}
+                               com.cnuernber/charred                   {:mvn/version "1.042"}
                                dev.weavejester/hashp                   {:mvn/version "0.5.1"}
                                metosin/malli                           {:mvn/version "0.20.1"}
                                ol/protocol53                           {:local/root "api"}
-                               org.clojure/clojure                     {:mvn/version "1.12.5"}}
+                               org.clojure/clojure                     {:mvn/version "1.12.6"}}
                  :jvm-opts    []}
 
            :test {:extra-paths ["api/src/test"
